@@ -28,36 +28,36 @@
 #include "hw/misc/fch.h"
 
 #define X86_IO_BASE 0xfc000000
-// See coreboot/src/soc/amd/common/block/include/amdblocks/aoac.h
+/* See coreboot/src/soc/amd/common/block/include/amdblocks/aoac.h */
 #define AOACx0000   0xfed81e00
 
 static uint64_t fch_read(void *opaque, hwaddr offset, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case AOACx0000 + 0x77:
         return 7;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                __func__, offset);
 
     return 0;
 }
 
 static void fch_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case X86_IO_BASE + 0x80: // Postcode
         qemu_printf("\033[0;31mPOSTCODE %08lx\033[0m\n", data);
         return;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
 
-MemoryRegionOps fch_ops = {
+const MemoryRegionOps fch_ops = {
     .read = fch_read,
     .write = fch_write,
     .valid.min_access_size = 1,

@@ -31,10 +31,12 @@ static uint64_t smn_bridge_io_read(void *opaque, hwaddr addr, unsigned size)
     return 0;
 }
 
-static void smn_bridge_io_write(void *opaque, hwaddr addr, uint64_t value, unsigned size)
+static void smn_bridge_io_write(void *opaque, hwaddr addr,
+                                uint64_t value, unsigned size)
 {
     SmnBridgeState *s = SMN_BRIDGE(opaque);
-    memory_region_set_alias_offset(&s->aliases[addr >> 1], value << SMN_BRIDGE_MAPPING_BITS);
+    memory_region_set_alias_offset(&s->aliases[addr >> 1],
+                                   value << SMN_BRIDGE_MAPPING_BITS);
 }
 
 static const MemoryRegionOps smn_bridge_io_ops = {
@@ -56,12 +58,15 @@ static void smn_bridge_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     SmnBridgeState *s = SMN_BRIDGE(obj);
 
-    // Init the registers access
-    memory_region_init_io(&s->regs_region, OBJECT(s), &smn_bridge_io_ops, s, "smn-bridge-regs", sizeof(uint16_t) * SMN_BRIDGE_NUM_MAPPINGS);
+    /* Init the registers access */
+    memory_region_init_io(&s->regs_region, OBJECT(s), &smn_bridge_io_ops, s,
+                          "smn-bridge-regs",
+                          sizeof(uint16_t) * SMN_BRIDGE_NUM_MAPPINGS);
     sysbus_init_mmio(sbd, &s->regs_region);
 
-    // Init the mapped memory
-    memory_region_init(&s->mapped_region, OBJECT(s), "smn-bridge-mapped-space", SMN_BRIDGE_NUM_MAPPINGS * SMN_BRIDGE_MAPPING_SIZE);
+    /* Init the mapped memory */
+    memory_region_init(&s->mapped_region, OBJECT(s), "smn-bridge-mapped-space",
+                       SMN_BRIDGE_NUM_MAPPINGS * SMN_BRIDGE_MAPPING_SIZE);
     sysbus_init_mmio(sbd, &s->mapped_region);
 
 }
@@ -70,10 +75,11 @@ static void smn_bridge_realize(DeviceState *dev, Error **errp)
 {
     SmnBridgeState *s = SMN_BRIDGE(dev);
 
-    for(int idx = 0; idx < SMN_BRIDGE_NUM_MAPPINGS; idx++) {
-        // We first create an alias object
-        memory_region_init_alias(&s->aliases[idx], OBJECT(s), "alias[*]", s->source_memory, 0, SMN_BRIDGE_MAPPING_SIZE);
-        // We then add this object in the mapped space
+    for (int idx = 0; idx < SMN_BRIDGE_NUM_MAPPINGS; idx++) {
+        /* We first create an alias object */
+        memory_region_init_alias(&s->aliases[idx], OBJECT(s), "alias[*]",
+                                 s->source_memory, 0, SMN_BRIDGE_MAPPING_SIZE);
+        /* We then add this object in the mapped space */
         memory_region_add_subregion(&s->mapped_region, idx * SMN_BRIDGE_MAPPING_SIZE, &s->aliases[idx]);
     }
 }

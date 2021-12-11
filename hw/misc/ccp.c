@@ -77,7 +77,7 @@ static void check_sanity(ccp_queue_t *queue)
 
 static int ccp_execute_command(CcpState *s, struct ccp5_desc *desc)
 {
-    switch(desc->dw0.engine) {
+    switch (desc->dw0.engine) {
     case CCP_ENGINE_AES:
         return ccp_op_aes(s, desc);
     case CCP_ENGINE_PASSTHRU:
@@ -95,8 +95,9 @@ static int ccp_execute_command(CcpState *s, struct ccp5_desc *desc)
 
 static void ccp_run(CcpState *s, ccp_queue_t *queue)
 {
-    if(FIELD_EX32(queue->control, Q_CONTROL, RUN) == 0)
+    if (FIELD_EX32(queue->control, Q_CONTROL, RUN) == 0) {
         return; /* Not running */
+    }
 
     check_sanity(queue);
 
@@ -104,28 +105,28 @@ static void ccp_run(CcpState *s, ccp_queue_t *queue)
     uint32_t head_idx = (queue->head - queue->base) >> 5;
     uint32_t tail_idx = (queue->tail - queue->base) >> 5;
 
-    while(head_idx != tail_idx) {
+    while (head_idx != tail_idx) {
         struct ccp5_desc desc;
         MemTxResult mem_res = address_space_read(&address_space_memory, queue->head, MEMTXATTRS_UNSPECIFIED, &desc, sizeof(desc));
         assert(mem_res == MEMTX_OK);
 
         int res = ccp_execute_command(s, &desc);
 
-        // Handle interrupt
-        if(desc.dw0.ioc) {
+        /* Handle interrupt */
+        if (desc.dw0.ioc) {
             int int_num = res ? INT_ERROR : INT_COMPLETION;
-            if(queue->int_enable & int_num) {
+            if (queue->int_enable & int_num) {
                 queue->interrupt_status |= int_num;
                 qemu_irq_raise(s->irq);
             }
         }
 
-        // Update head
+        /* Update head */
         head_idx = (head_idx + 1) % queue_size;
         queue->head = queue->base + head_idx * 0x20;
 
-        // Stop if requested
-        if(desc.dw0.soc) {
+        /* Stop if requested */
+        if (desc.dw0.soc) {
             queue->control = FIELD_DP32(queue->control, Q_CONTROL, RUN, 0);
             queue->control = FIELD_DP32(queue->control, Q_CONTROL, HALT, 1);
             break;
@@ -136,9 +137,9 @@ static void ccp_run(CcpState *s, ccp_queue_t *queue)
 static uint64_t
 ccp_mmio_read_generic(CcpState *s, hwaddr addr)
 {
-    switch(addr) {
+    switch (addr) {
     case A_QUEUE_MASK:
-        return (1 << MAX_HW_QUEUES) - 1; // 5 queues
+        return (1 << MAX_HW_QUEUES) - 1; /* 5 queues */
     case A_QUEUE_PRIO:
         return s->queue_prio;
     case A_TRNG_OUT:
@@ -154,25 +155,26 @@ ccp_mmio_read_generic(CcpState *s, hwaddr addr)
     case A_REG_6054:
         return s->reg_5064;
     }
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read (addr 0x%lx)\n", __FUNCTION__, addr);
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
+                  "(addr 0x%lx)\n", __func__, addr);
     return 0;
 }
 
 static void
 ccp_mmio_write_generic(CcpState *s, hwaddr addr, uint64_t val)
 {
-    switch(addr) {
+    switch (addr) {
     case A_QUEUE_PRIO:
         s->queue_prio = val;
         return;
     case A_REQID_CONFIG:
-        //assert(val == 0);
+        /* assert(val == 0); */
         return;
     case A_LSB_PUBLIC_MASK_LO:
-        //assert(val == 0x39ce0000);
+        /* assert(val == 0x39ce0000); */
         return;
     case A_LSB_PUBLIC_MASK_HI:
-        //assert(val == 0x0000039c);
+        /* assert(val == 0x0000039c); */
         return;
     case A_CONFIG_0:
         assert(val == 1);
@@ -187,13 +189,14 @@ ccp_mmio_write_generic(CcpState *s, hwaddr addr, uint64_t val)
         s->reg_5064 = val;
         return;
     }
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (addr 0x%lx, value 0x%lx)\n", __FUNCTION__, addr, val);
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(addr 0x%lx, value 0x%lx)\n", __func__, addr, val);
 }
 
 static uint64_t
 ccp_mmio_read_queue(CcpState *s, ccp_queue_t *queue, hwaddr offset)
 {
-    switch(offset) {
+    switch (offset) {
     case A_Q_CONTROL:
         return queue->control;
     case A_Q_STATUS:
@@ -205,16 +208,17 @@ ccp_mmio_read_queue(CcpState *s, ccp_queue_t *queue, hwaddr offset)
     case A_Q_HEAD_LO:
         return queue->head;
     }
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read (queue %x, offset 0x%lx)\n", __FUNCTION__, queue->num, offset);
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
+                  "(queue %x, offset 0x%lx)\n", __func__, queue->num, offset);
     return 0;
 }
 
 static void
-ccp_mmio_write_queue(CcpState *s, ccp_queue_t *queue, hwaddr offset, uint64_t val)
+ccp_mmio_write_queue(CcpState *s, ccp_queue_t *queue, hwaddr offset,
+                     uint64_t val)
 {
-    switch(offset) {
+    switch (offset) {
     case A_Q_CONTROL:
-        //qemu_printf("CCP[%x] ctrl -> %lx\n", queue->num, val);
         queue->control = val;
         ccp_run(s, queue);
         return;
@@ -223,8 +227,8 @@ ccp_mmio_write_queue(CcpState *s, ccp_queue_t *queue, hwaddr offset, uint64_t va
         ccp_run(s, queue);
         return;
     case A_Q_HEAD_LO:
-        //qemu_printf("CCP[%x] head -> %lx\n", queue->num, val);
-        queue->base = val; // Assume that the head is only written to set the base address
+        /* Assume that the head is only written to set the base address */
+        queue->base = val;
         queue->head = val;
         ccp_run(s, queue);
         return;
@@ -233,12 +237,16 @@ ccp_mmio_write_queue(CcpState *s, ccp_queue_t *queue, hwaddr offset, uint64_t va
         queue->int_enable = val;
         return;
     case A_Q_INTERRUPT_STATUS:
-        queue->interrupt_status &= ~val; // clear interrupts
-        if(!queue->interrupt_status)
+        /* Clear interrupts */
+        queue->interrupt_status &= ~val;
+        if (!queue->interrupt_status) {
             qemu_irq_lower(s->irq);
+        }
         return;
     }
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (queue %x, offset 0x%lx, value 0x%lx)\n", __FUNCTION__, queue->num, offset, val);
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(queue %x, offset 0x%lx, value 0x%lx)\n", __func__,
+                  queue->num, offset, val);
 }
 
 static uint64_t
@@ -246,7 +254,7 @@ ccp_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     CcpState *s = CCP(opaque);
 
-    if(addr >= 0x1000 && addr < 0x6000) {
+    if (addr >= 0x1000 && addr < 0x6000) {
         return ccp_mmio_read_queue(s, &s->queues[(addr >> 12) - 1], addr & 0xfff);
     } else {
         return ccp_mmio_read_generic(s, addr);
@@ -259,7 +267,7 @@ ccp_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     CcpState *s = CCP(opaque);
 
-    if(addr >= 0x1000 && addr < 0x6000) {
+    if (addr >= 0x1000 && addr < 0x6000) {
         ccp_mmio_write_queue(s, &s->queues[(addr >> 12) - 1], addr & 0xfff, val);
     } else {
         ccp_mmio_write_generic(s, addr, val);
@@ -290,7 +298,7 @@ static void ccp_realize(DeviceState *dev, Error **errp)
 {
     CcpState *s = CCP(dev);
 
-    for(int i = 0; i < MAX_HW_QUEUES; i++) {
+    for (int i = 0; i < MAX_HW_QUEUES; i++) {
         s->queues[i].num = i;
         s->queues[i].control = FIELD_DP32(s->queues[i].control, Q_CONTROL, HALT, 1);
     }

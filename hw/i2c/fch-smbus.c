@@ -65,7 +65,7 @@
 #define PROT_BYTE       1
 #define PROT_BYTE_DATA  2
 
-const char * commands[] = {"write", "read"};
+const char *commands[] = {"write", "read"};
 
 
 static void fch_smbus_start(FchSmbusState *s)
@@ -79,11 +79,9 @@ static void fch_smbus_start(FchSmbusState *s)
 
 
     assert(proto == PROT_BYTE || proto == PROT_BYTE_DATA);
-    switch(proto)
-    {
+    switch (proto) {
     case PROT_BYTE:
-        switch(rdwr)
-        {
+        switch (rdwr) {
         case RDWR_READ:
             res = smbus_receive_byte(s->bus, addr);
             s->data0 = res;
@@ -94,8 +92,7 @@ static void fch_smbus_start(FchSmbusState *s)
         }
         break;
     case PROT_BYTE_DATA:
-        switch(rdwr)
-        {
+        switch (rdwr) {
         case RDWR_READ:
             res = smbus_read_byte(s->bus, addr, s->host_cmd);
             s->data0 = res;
@@ -106,91 +103,110 @@ static void fch_smbus_start(FchSmbusState *s)
         }
         break;
     }
-    if(res < 0)
+    if (res < 0) {
         s->status = FIELD_DP8(s->status, STATUS, DEVICE_ERR, 1);
-    else
+    } else {
         s->status = FIELD_DP8(s->status, STATUS, SMBUS_INT, 1);
+    }
 }
 
 static uint64_t fch_smbus_io_read(void *opaque, hwaddr addr, unsigned size)
 {
     FchSmbusState *s = FCH_SMBUS(opaque);
-    switch(addr) {
-        case R_STATUS:
-            return s->status;
-        case R_SLAVE_STATUS:
-            return s->slave_status;
-        case R_CONTROL:
-            return s->control;
-        case R_DATA0:
-            return s->data0;
-        case R_SLAVE_CONTROL:
-            return s->slave_control;
-        default:
-            qemu_log_mask(LOG_GUEST_ERROR,
-                        "%s: Bad read offset 0x%"HWADDR_PRIx"\n",
-                        __func__, addr);
-            break;
+    switch (addr) {
+    case R_STATUS:
+        return s->status;
+    case R_SLAVE_STATUS:
+        return s->slave_status;
+    case R_CONTROL:
+        return s->control;
+    case R_DATA0:
+        return s->data0;
+    case R_SLAVE_CONTROL:
+        return s->slave_control;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: Bad read offset 0x%"HWADDR_PRIx"\n",
+                    __func__, addr);
+        break;
     }
     return 0;
 }
 
-static void fch_smbus_io_write(void *opaque, hwaddr addr, uint64_t value, unsigned size)
+static void fch_smbus_io_write(void *opaque, hwaddr addr,
+                               uint64_t value, unsigned size)
 {
     FchSmbusState *s = FCH_SMBUS(opaque);
-    switch(addr) {
-        case R_STATUS:
-            if(FIELD_EX8(value, STATUS, SMBUS_INT))
-                s->status = FIELD_DP8(s->status, STATUS, SMBUS_INT, 0);
-            if(FIELD_EX8(value, STATUS, DEVICE_ERR))
-                s->status = FIELD_DP8(s->status, STATUS, DEVICE_ERR, 0);
-            if(FIELD_EX8(value, STATUS, BUS_COLLISION))
-                s->status = FIELD_DP8(s->status, STATUS, BUS_COLLISION, 0);
-            if(FIELD_EX8(value, STATUS, FAILED))
-                s->status = FIELD_DP8(s->status, STATUS, FAILED, 0);
-            return;
-        case R_SLAVE_STATUS:
-            // TODO: if(FIELD_EX8(value, SLAVE_STATUS, SLAVE_INIT))
+    switch (addr) {
+    case R_STATUS:
+        if (FIELD_EX8(value, STATUS, SMBUS_INT)) {
+            s->status = FIELD_DP8(s->status, STATUS, SMBUS_INT, 0);
+        }
+        if (FIELD_EX8(value, STATUS, DEVICE_ERR)) {
+            s->status = FIELD_DP8(s->status, STATUS, DEVICE_ERR, 0);
+        }
+        if (FIELD_EX8(value, STATUS, BUS_COLLISION)) {
+            s->status = FIELD_DP8(s->status, STATUS, BUS_COLLISION, 0);
+        }
+        if (FIELD_EX8(value, STATUS, FAILED)) {
+            s->status = FIELD_DP8(s->status, STATUS, FAILED, 0);
+        }
+        return;
+    case R_SLAVE_STATUS:
+        /* TODO: if(FIELD_EX8(value, SLAVE_STATUS, SLAVE_INIT)) */
 
-            if(FIELD_EX8(value, SLAVE_STATUS, SLAVE_STATUS))
-                s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS, SLAVE_STATUS, 0);
-            if(FIELD_EX8(value, SLAVE_STATUS, SHADOW1_STATUS))
-                s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS, SHADOW1_STATUS, 0);
-            if(FIELD_EX8(value, SLAVE_STATUS, SHADOW2_STATUS))
-                s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS, SHADOW2_STATUS, 0);
-            if(FIELD_EX8(value, SLAVE_STATUS, ALERT_STATUS))
-                s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS, ALERT_STATUS, 0);
-            return;
-        case R_CONTROL:
-            s->control = value;
+        if (FIELD_EX8(value, SLAVE_STATUS, SLAVE_STATUS)) {
+            s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS,
+                                        SLAVE_STATUS, 0);
+        }
+        if (FIELD_EX8(value, SLAVE_STATUS, SHADOW1_STATUS)) {
+            s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS,
+                                        SHADOW1_STATUS, 0);
+        }
+        if (FIELD_EX8(value, SLAVE_STATUS, SHADOW2_STATUS)) {
+            s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS,
+                                        SHADOW2_STATUS, 0);
+        }
+        if (FIELD_EX8(value, SLAVE_STATUS, ALERT_STATUS)) {
+            s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS,
+                                        ALERT_STATUS, 0);
+        }
+        return;
+    case R_CONTROL:
+        s->control = value;
 
-            if(FIELD_EX8(value, CONTROL, START))
-                fch_smbus_start(s);
+        if (FIELD_EX8(value, CONTROL, START)) {
+            fch_smbus_start(s);
+        }
 
-            return;
-        case R_HOST_CMD:
-            s->host_cmd = value;
-            return;
-        case R_ADDRESS:
-            s->address = value;
-            return;
-        case R_DATA0:
-            s->data0 = value;
-            return;
-        case R_SLAVE_CONTROL:
-            assert(value == 0x10 || value == 0x30);
+        return;
+    case R_HOST_CMD:
+        s->host_cmd = value;
+        return;
+    case R_ADDRESS:
+        s->address = value;
+        return;
+    case R_DATA0:
+        s->data0 = value;
+        return;
+    case R_SLAVE_CONTROL:
+        assert(value == 0x10 || value == 0x30);
 
-            if(FIELD_EX8(value, SLAVE_CONTROL, HOST_SEMAPHORE))
-                s->slave_control = FIELD_DP8(s->slave_control, SLAVE_CONTROL, HOST_SEMAPHORE, 1);
-            if(FIELD_EX8(value, SLAVE_CONTROL, CLEAR_HOST_SEMAPHORE))
-                s->slave_control = FIELD_DP8(s->slave_control, SLAVE_CONTROL, HOST_SEMAPHORE, 0);
+        if (FIELD_EX8(value, SLAVE_CONTROL, HOST_SEMAPHORE)) {
+            s->slave_control = FIELD_DP8(s->slave_control, SLAVE_CONTROL,
+                                            HOST_SEMAPHORE, 1);
+        }
+        if (FIELD_EX8(value, SLAVE_CONTROL, CLEAR_HOST_SEMAPHORE)) {
+            s->slave_control = FIELD_DP8(s->slave_control, SLAVE_CONTROL,
+                                            HOST_SEMAPHORE, 0);
+        }
 
-            return;
-        default:
-            qemu_log_mask(LOG_GUEST_ERROR,
-                        "%s: Bad write offset 0x%"HWADDR_PRIx"\n",
-                        __func__, addr);
-            break;
+        return;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: Bad write offset 0x%"HWADDR_PRIx"\n",
+                    __func__, addr);
+        break;
     }
 }
 
@@ -216,23 +232,27 @@ static void fch_smbus_realize(DeviceState *dev, Error **errp)
 
     qdev_prop_set_uint8(DEVICE(&s->spd_bank0), "address", 0x36);
     s->spd_bank0.bank = &s->bank;
-    if (!qdev_realize_and_unref(DEVICE(&s->spd_bank0), (BusState *)s->bus, errp))
+    if (!qdev_realize_and_unref(DEVICE(&s->spd_bank0), (BusState *)s->bus, errp)) {
         return;
+    }
 
     qdev_prop_set_uint8(DEVICE(&s->spd_bank1), "address", 0x37);
     s->spd_bank1.bank = &s->bank;
-    if (!qdev_realize_and_unref(DEVICE(&s->spd_bank1), (BusState *)s->bus, errp))
+    if (!qdev_realize_and_unref(DEVICE(&s->spd_bank1), (BusState *)s->bus, errp)) {
         return;
+    }
 
     qdev_prop_set_uint8(DEVICE(&s->spd_data0), "address", 0x50);
     s->spd_data0.bank = &s->bank;
-    if (!qdev_realize_and_unref(DEVICE(&s->spd_data0), (BusState *)s->bus, errp))
+    if (!qdev_realize_and_unref(DEVICE(&s->spd_data0), (BusState *)s->bus, errp)) {
         return;
+    }
 
     qdev_prop_set_uint8(DEVICE(&s->spd_data1), "address", 0x51);
     s->spd_data1.bank = &s->bank;
-    if (!qdev_realize_and_unref(DEVICE(&s->spd_data1), (BusState *)s->bus, errp))
+    if (!qdev_realize_and_unref(DEVICE(&s->spd_data1), (BusState *)s->bus, errp)) {
         return;
+    }
 }
 
 static void fch_smbus_init(Object *obj)
@@ -240,11 +260,12 @@ static void fch_smbus_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     FchSmbusState *s = FCH_SMBUS(obj);
 
-    // Init the registers access
-    memory_region_init_io(&s->regs_region, OBJECT(s), &fch_smbus_io_ops, s, "fch-smbus-regs", 0x100);
+    /* Init the registers access */
+    memory_region_init_io(&s->regs_region, OBJECT(s), &fch_smbus_io_ops,
+                          s, "fch-smbus-regs", 0x100);
     sysbus_init_mmio(sbd, &s->regs_region);
 
-    // Create the smbus bus
+    /* Create the smbus bus */
     s->bus = i2c_init_bus(DEVICE(s), "smbus");
 
     object_initialize_child(obj, "spd-bank0", &s->spd_bank0, TYPE_FCH_SPD_BANK);

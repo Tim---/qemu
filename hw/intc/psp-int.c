@@ -47,11 +47,11 @@ static void psp_int_irq_update(PspIntState *pis)
 
     pis->current_int = 0xffffffff;
 
-    for(reg = 0; reg < PSP_INT_ARRAY_SIZE; reg++) {
+    for (reg = 0; reg < PSP_INT_ARRAY_SIZE; reg++) {
         uint32_t valid = pis->active[reg] & pis->enabled[reg];
-        if(valid) {
-            for(bit = 0; bit < 32; bit++) {
-                if((valid >> bit) & 1) {
+        if (valid) {
+            for (bit = 0; bit < 32; bit++) {
+                if ((valid >> bit) & 1) {
                     pis->current_int = reg * 32 + bit;
                 }
             }
@@ -66,11 +66,13 @@ static void set_int_enable(PspIntState *pis, size_t index, uint64_t data)
     uint32_t new_enabled = data & ~pis->enabled[index];
     uint32_t new_disabled = ~data & pis->enabled[index];
 
-    for(int i = 0; i < 32; i++) {
-        if((new_enabled >> i) & 1)
+    for (int i = 0; i < 32; i++) {
+        if ((new_enabled >> i) & 1) {
             trace_psp_int_enable(index * 32 + i);
-        if((new_disabled >> i) & 1)
+        }
+        if ((new_disabled >> i) & 1) {
             trace_psp_int_disable(index * 32 + i);
+        }
     }
     pis->enabled[index] = data;
 
@@ -79,9 +81,10 @@ static void set_int_enable(PspIntState *pis, size_t index, uint64_t data)
 
 static void set_int_ack(PspIntState *pis, size_t index, uint64_t data)
 {
-    for(int i = 0; i < 32; i++) {
-        if((data >> i) & 1)
+    for (int i = 0; i < 32; i++) {
+        if ((data >> i) & 1) {
             trace_psp_int_ack(index * 32 + i);
+        }
     }
     pis->active[index] &= ~data;
 
@@ -93,7 +96,7 @@ static uint64_t psp_int_public_read(void *opaque, hwaddr offset, unsigned size)
     PspIntState *pis = PSP_INT(opaque);
     size_t index = offset / 4;
 
-    switch(index) {
+    switch (index) {
     case R_INT_ENABLE0 ... R_INT_ENABLE3:
         return pis->enabled[index - R_INT_ENABLE0];
     case R_NO_MORE_INT:
@@ -103,18 +106,18 @@ static uint64_t psp_int_public_read(void *opaque, hwaddr offset, unsigned size)
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                "(offset 0x%lx)\n", __func__, offset);
 
     return 0;
 }
 
-static void psp_int_public_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void psp_int_public_write(void *opaque, hwaddr offset,
+                                 uint64_t data, unsigned size)
 {
     PspIntState *pis = PSP_INT(opaque);
     size_t index = offset / 4;
 
-    switch(index) {
+    switch (index) {
     case R_INT_ENABLE0 ... R_INT_ENABLE3:
         set_int_enable(pis, index - R_INT_ENABLE0, data);
         return;
@@ -124,11 +127,11 @@ static void psp_int_public_write(void *opaque, hwaddr offset, uint64_t data, uns
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
 
-MemoryRegionOps psp_int_public_ops = {
+const MemoryRegionOps psp_int_public_ops = {
     .read = psp_int_public_read,
     .write = psp_int_public_write,
     .valid.min_access_size = 4,
@@ -139,21 +142,20 @@ MemoryRegionOps psp_int_public_ops = {
 static uint64_t psp_int_private_read(void *opaque, hwaddr offset, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                "(offset 0x%lx)\n", __func__, offset);
 
     return 0;
 }
 
-static void psp_int_private_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void psp_int_private_write(void *opaque, hwaddr offset,
+                                  uint64_t data, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
-
-MemoryRegionOps psp_int_private_ops = {
+const MemoryRegionOps psp_int_private_ops = {
     .read = psp_int_private_read,
     .write = psp_int_private_write,
     .valid.min_access_size = 4,
@@ -166,10 +168,12 @@ static void psp_int_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PspIntState *pis = PSP_INT(obj);
 
-    // Init the registers access
-    memory_region_init_io(&pis->regs_region_public, OBJECT(pis), &psp_int_public_ops, pis, "psp-int-public", 0x100);
+    /* Init the registers access */
+    memory_region_init_io(&pis->regs_region_public, OBJECT(pis),
+                          &psp_int_public_ops, pis, "psp-int-public", 0x100);
     sysbus_init_mmio(sbd, &pis->regs_region_public);
-    memory_region_init_io(&pis->regs_region_private, OBJECT(pis), &psp_int_private_ops, pis, "psp-int-private", 0x100);
+    memory_region_init_io(&pis->regs_region_private, OBJECT(pis),
+                          &psp_int_private_ops, pis, "psp-int-private", 0x100);
     sysbus_init_mmio(sbd, &pis->regs_region_private);
 
     sysbus_init_irq(sbd, &pis->irq);

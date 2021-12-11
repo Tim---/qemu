@@ -31,7 +31,7 @@ REG32(MSG_CMD,          0x714)
 
 static uint64_t psp_smu_read(void *opaque, hwaddr offset, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case A_INTERRUPT_READY:
         return 1;
     case A_MSG_STATUS:
@@ -41,25 +41,26 @@ static uint64_t psp_smu_read(void *opaque, hwaddr offset, unsigned size)
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                __func__, offset);
 
     return 0;
 }
 
-static void psp_smu_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void psp_smu_write(void *opaque, hwaddr offset,
+                          uint64_t data, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case A_MSG_DATA:
     case A_MSG_CMD:
         return;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
 
-MemoryRegionOps psp_smu_ops = {
+const MemoryRegionOps psp_smu_ops = {
     .read = psp_smu_read,
     .write = psp_smu_write,
     .valid.min_access_size = 4,
@@ -73,8 +74,8 @@ static void psp_smu_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PspSmuState *s = PSP_SMU(obj);
 
-    // Init the registers access
-    memory_region_init_io(&s->regs_region, OBJECT(s), &psp_smu_ops, s, "smu-regs", 0x10000);
+    memory_region_init_io(&s->regs_region, OBJECT(s), &psp_smu_ops, s,
+                          "smu-regs", 0x10000);
     sysbus_init_mmio(sbd, &s->regs_region);
 }
 

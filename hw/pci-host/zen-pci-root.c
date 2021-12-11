@@ -26,10 +26,6 @@
 #include "qemu/module.h"
 #include "hw/pci-host/zen-pci-root.h"
 
-/****************************************************************************
- * ZEN host
- */
-
 static void zen_host_realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
@@ -41,7 +37,9 @@ static void zen_host_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &pex->mmio);
 
     pci->bus = pci_register_root_bus(dev, "pcie.0", NULL,
-                                     pci_swizzle_map_irq_fn, s, get_system_memory(), get_system_io(), 0, 4, TYPE_PCIE_BUS);
+                                     pci_swizzle_map_irq_fn, s,
+                                     get_system_memory(), get_system_io(),
+                                     0, 4, TYPE_PCIE_BUS);
 
     qdev_realize(DEVICE(&s->zen_root), BUS(pci->bus), &error_fatal);
 }
@@ -81,7 +79,7 @@ static const TypeInfo zen_pci_host_info = {
     .class_init = zen_host_class_init,
 };
 
-/****************************************************************************
+/*
  * FCH Root Complex D0:F0
  */
 

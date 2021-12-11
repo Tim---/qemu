@@ -138,7 +138,6 @@ static void fch_spd_data_realize(DeviceState *dev, Error **errp)
     FchSpdDataState *s = FCH_SPD_DATA(dev);
 
     assert(s->bank != NULL);
-    //memset(s->data, 0, 512);
     memcpy(s->data, eeprom52, 512);
 
 }

@@ -28,9 +28,9 @@
 
 #include "hw/isa/fch-lpc.h"
 
-// D14F3x / FCH::ITF::LPC
+/* D14F3x / FCH::ITF::LPC */
 
-REG32(DEVICE_VENDOR_ID,             0x00) // PCI !
+REG32(DEVICE_VENDOR_ID,             0x00)
 REG32(IO_PORT_DECODE_ENABLE,        0x44)
     FIELD(IO_PORT_DECODE_ENABLE,        AD_LIB,     31, 1)
     FIELD(IO_PORT_DECODE_ENABLE,        ACPI_UC,    30, 1)
@@ -114,7 +114,8 @@ static void fch_lpc_realize(PCIDevice *dev, Error **errp)
     ISABus *isa_bus;
     FchLpcState *lpc = FCH_LPC(dev);
 
-    isa_bus = isa_bus_new(DEVICE(dev), pci_address_space(dev), get_system_io(), errp);
+    isa_bus = isa_bus_new(DEVICE(dev), pci_address_space(dev),
+                          get_system_io(), errp);
     if (!isa_bus) {
         return;
     }
@@ -122,7 +123,7 @@ static void fch_lpc_realize(PCIDevice *dev, Error **errp)
 
     isa_bus_irqs(isa_bus, lpc->isa_irqs);
 
-    // Create serial ports
+    /* Create serial ports */
     serial_hds_isa_init(lpc->isa_bus, 0, 1);
 }
 
@@ -130,46 +131,47 @@ static void fch_lpc_exit(PCIDevice *dev)
 {
 }
 
-static void fch_lpc_config_write(PCIDevice *d, uint32_t addr, uint32_t val, int len)
+static void fch_lpc_config_write(PCIDevice *d, uint32_t addr,
+                                 uint32_t val, int len)
 {
     assert(len == 4);
-    switch(addr) {
+    switch (addr) {
     case A_DEVICE_VENDOR_ID:
-        assert(val == 0xffffff00); // why ?
+        assert(val == 0xffffff00); /* why ? */
         return;
     case A_IO_PORT_DECODE_ENABLE:
-        assert(val == 0xc0); // enable serial port 0/1
+        assert(val == 0xc0); /* enable serial port 0/1 */
         return;
     case A_IO_MEM_PORT_DECODE_ENABLE:
-        // 0x200000: IO_PORT_EN4
-        // 0x7: SUPERIO_CONFIG_PORT_EN | ALT_SUPERIO_CONFIG_PORT_EN | WIDE_IO0_EN
+        /* 0x200000: IO_PORT_EN4 */
+        /* 0x7: SUPERIO_CONFIG_PORT_EN | ALT_SUPERIO_CONFIG_PORT_EN | WIDE_IO0_EN */
         assert(val == 0x200000 || val == 0x7);
         return;
     case A_PCI_IO_BASE_ADDR_WIDE_IO:
-        // Wide IO 0 base address
+        /* Wide IO 0 base address */
         assert(val == 0x1640);
         return;
     case A_SPI_BASE_ADDR:
         /*
-        AltSpiCSEnable = 0
-        SpiRomEnable = 1
-        AbortEnable = 0
-        RouteTpm2Spi = 0
-        PspSpiMmioSel = 0
-        Spi_eSpi_BaseAddr = 0xfec10000
-        */
+         * AltSpiCSEnable = 0
+         * SpiRomEnable = 1
+         * AbortEnable = 0
+         * RouteTpm2Spi = 0
+         * PspSpiMmioSel = 0
+         * Spi_eSpi_BaseAddr = 0xfec10000
+         */
         assert(val == 0xfec10002);
         return;
     case A_CLK_CNTRL:
         /*
-        Lclk1ClkrunOvrid = 1
-        */
+         * Lclk1ClkrunOvrid = 1
+         */
         assert(val == 0x40000);
         return;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%x, value 0x%x)\n",
-                  __FUNCTION__, addr, val);
+                  __func__, addr, val);
 }
 
 static uint32_t fch_lpc_config_read(PCIDevice *d, uint32_t addr, int len)
@@ -178,7 +180,7 @@ static uint32_t fch_lpc_config_read(PCIDevice *d, uint32_t addr, int len)
 
     int res = 0;
 
-    switch(addr) {
+    switch (addr) {
     case A_IO_PORT_DECODE_ENABLE:
     case A_IO_MEM_PORT_DECODE_ENABLE:
     case A_PCI_IO_BASE_ADDR_WIDE_IO:
@@ -187,8 +189,7 @@ static uint32_t fch_lpc_config_read(PCIDevice *d, uint32_t addr, int len)
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%x)\n",
-                __FUNCTION__, addr);
+                "(offset 0x%x)\n", __func__, addr);
 
     return res;
 }

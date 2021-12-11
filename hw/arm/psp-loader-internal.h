@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-// Type definition from coreboot/util/amdfwtool/amdfwtool.h
+/* Type definition from coreboot/util/amdfwtool/amdfwtool.h */
 
 #ifndef PSP_LOADER_INTERNAL_H
 #define PSP_LOADER_INTERNAL_H

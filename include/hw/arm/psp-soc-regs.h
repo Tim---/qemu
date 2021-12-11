@@ -1,7 +1,6 @@
 #ifndef PSP_SOC_REGS_H
 #define PSP_SOC_REGS_H
 
-#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "hw/timer/psp-timer.h"

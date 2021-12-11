@@ -26,37 +26,41 @@
 
 #include "hw/arm/psp-utils.h"
 
-static uint64_t stub_read(void *opaque, hwaddr offset, unsigned size)
+static uint64_t stub_read(void *opaque, hwaddr offset,
+                          unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                __func__, offset);
 
     return (uint64_t)opaque;
 }
 
-static void stub_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void stub_write(void *opaque, hwaddr offset,
+                       uint64_t data, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
-MemoryRegionOps stub_ops = {
+const MemoryRegionOps stub_ops = {
     .read = stub_read,
     .write = stub_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 8,
 };
 
-void stub_create(const char *name, MemoryRegion *parent_region, hwaddr offset, uint32_t size, uint64_t value) {
+void stub_create(const char *name, MemoryRegion *parent_region,
+                 hwaddr offset, uint32_t size, uint64_t value)
+{
     MemoryRegion *region = g_new0(MemoryRegion, 1);
     memory_region_init_io(region, NULL, &stub_ops, (void *)value, name, size);
     memory_region_add_subregion(parent_region, offset, region);
 }
 
-void create_unimplemented_device_custom(const char *name, MemoryRegion *region, hwaddr base,
-                                        hwaddr size, bool ones)
+void create_unimplemented_device_custom(const char *name, MemoryRegion *region,
+                                        hwaddr base, hwaddr size, bool ones)
 {
     DeviceState *dev = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
 

@@ -21,7 +21,6 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "hw/registerfields.h"
-
 #include "hw/mem/psp-umc.h"
 
 /*
@@ -53,7 +52,8 @@ static uint64_t psp_umc_read(void *opaque, hwaddr offset, unsigned size)
     }
 }
 
-static void psp_umc_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void psp_umc_write(void *opaque, hwaddr offset,
+                          uint64_t data, unsigned size)
 {
     switch (offset) {
     }
@@ -74,10 +74,11 @@ const MemoryRegionOps psp_umc_ops = {
 static void psp_umc_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    PspUmcState *pis = PSP_UMC(obj);
+    PspUmcState *s = PSP_UMC(obj);
 
-    memory_region_init_io(&pis->regs_region, OBJECT(pis), &psp_umc_ops, pis, "psp-umc", 0x2000);
-    sysbus_init_mmio(sbd, &pis->regs_region);
+    memory_region_init_io(&s->regs_region, OBJECT(s), &psp_umc_ops,
+                          s, "psp-umc", 0x2000);
+    sysbus_init_mmio(sbd, &s->regs_region);
 }
 
 static void psp_umc_realize(DeviceState *dev, Error **errp)

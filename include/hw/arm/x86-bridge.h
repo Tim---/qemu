@@ -1,15 +1,14 @@
 #ifndef X86_BRIDGE_H
 #define X86_BRIDGE_H
 
-#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
 #define TYPE_X86_BRIDGE "x86-bridge"
 OBJECT_DECLARE_SIMPLE_TYPE(X86BridgeState, X86_BRIDGE)
 
-
-#define X86_BRIDGE_MAPPING_BITS 0x1a       // Number of low bits
+/* Number of low bits */
+#define X86_BRIDGE_MAPPING_BITS 0x1a
 #define X86_BRIDGE_MAPPING_SIZE (1UL << X86_BRIDGE_MAPPING_BITS)
 #define X86_BRIDGE_NUM_MAPPINGS 15
 
@@ -36,7 +35,7 @@ struct X86BridgeState {
     uint32_t A[X86_BRIDGE_MAX_MAPPINGS];
     uint32_t B[X86_BRIDGE_MAX_MAPPINGS];
 
-    MemoryRegion *source_memory;    // Property
+    MemoryRegion *source_memory;
 };
 
 

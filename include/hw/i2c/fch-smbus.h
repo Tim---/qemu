@@ -26,7 +26,7 @@ struct FchSmbusState {
 
     I2CBus *bus;
 
-    // Temporary !
+    /* Temporary ! */
     FchSpdBankState spd_bank0;
     FchSpdBankState spd_bank1;
     FchSpdDataState spd_data0;

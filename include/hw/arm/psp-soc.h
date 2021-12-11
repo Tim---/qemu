@@ -1,7 +1,6 @@
 #ifndef PSP_SOC_H
 #define PSP_SOC_H
 
-#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "qom/object.h"
 #include "cpu.h"

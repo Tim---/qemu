@@ -27,7 +27,7 @@
 
 #include "hw/misc/fch-acpi.h"
 
-// See "BKDG for AMD Family 15h Models 70h-7Fh Processors"
+/* See "BKDG for AMD Family 15h Models 70h-7Fh Processors" */
 
 #define TOTAL_SIZE  0x2000
 
@@ -41,7 +41,7 @@ REG32(PM_LPC_GATING,    0xEC)
 
 #define ACPI_BASE   0x0800
 #define ACPI_SIZE   0x0100
-// Standard registers. Use the already defined hw/acpi/* ?
+/* Standard registers. Use the already defined hw/acpi/ ? */
 REG32(ACPI_PM1_CNT_BLK, 0x04)
     FIELD(ACPI_PM1_CNT_BLK, SCI_EN,     13, 1)
     FIELD(ACPI_PM1_CNT_BLK, BM_RLD,     10, 3)
@@ -78,7 +78,7 @@ REG32(IOMUX_SPKR_AGPIO91,   0x5b)
 
 static uint64_t fch_acpi_pm_read(void *opaque, hwaddr offset, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case A_PM_ACPI_CONFIG:
         return 0;
     case A_PM_S5_RESET_STAT:
@@ -86,24 +86,24 @@ static uint64_t fch_acpi_pm_read(void *opaque, hwaddr offset, unsigned size)
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                __func__, offset);
 
     return 0;
 }
 
 static void fch_acpi_pm_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case A_PM_ACPI_CONFIG:
-        assert(data == 1); // Enable ACPI decoding
+        assert(data == 1); /* Enable ACPI decoding */
         return;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
-MemoryRegionOps fch_acpi_pm_ops = {
+const MemoryRegionOps fch_acpi_pm_ops = {
     .read = fch_acpi_pm_read,
     .write = fch_acpi_pm_write,
     .valid.min_access_size = 1,
@@ -116,27 +116,26 @@ MemoryRegionOps fch_acpi_pm_ops = {
 
 static uint64_t fch_acpi_acpi_read(void *opaque, hwaddr offset, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case A_ACPI_PM1_CNT_BLK:
         return 0;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                __func__, offset);
 
     return 0;
 }
 
-static void fch_acpi_acpi_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void fch_acpi_acpi_write(void *opaque, hwaddr offset,
+                                uint64_t data, unsigned size)
 {
-    switch(offset) {
-    }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
-MemoryRegionOps fch_acpi_acpi_ops = {
+const MemoryRegionOps fch_acpi_acpi_ops = {
     .read = fch_acpi_acpi_read,
     .write = fch_acpi_acpi_write,
     .valid.min_access_size = 1,
@@ -149,27 +148,28 @@ MemoryRegionOps fch_acpi_acpi_ops = {
 
 static uint64_t fch_acpi_aoac_read(void *opaque, hwaddr offset, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case 0x77:
         return 7;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                  "(offset 0x%lx)\n",
+                  __func__, offset);
 
     return 0;
 }
 
-static void fch_acpi_aoac_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void fch_acpi_aoac_write(void *opaque, hwaddr offset,
+                                uint64_t data, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
-MemoryRegionOps fch_acpi_aoac_ops = {
+const MemoryRegionOps fch_acpi_aoac_ops = {
     .read = fch_acpi_aoac_read,
     .write = fch_acpi_aoac_write,
     .valid.min_access_size = 1,
@@ -183,21 +183,22 @@ MemoryRegionOps fch_acpi_aoac_ops = {
 static uint64_t fch_acpi_unimp_read(void *opaque, hwaddr offset, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                  "(offset 0x%lx)\n",
+                  __func__, offset);
 
     return 0;
 }
 
-static void fch_acpi_unimp_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void fch_acpi_unimp_write(void *opaque, hwaddr offset,
+                                 uint64_t data, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
 
-MemoryRegionOps fch_acpi_unimp_ops = {
+const MemoryRegionOps fch_acpi_unimp_ops = {
     .read = fch_acpi_unimp_read,
     .write = fch_acpi_unimp_write,
     .valid.min_access_size = 1,
@@ -205,8 +206,9 @@ MemoryRegionOps fch_acpi_unimp_ops = {
 };
 
 
-static void add_bank(FchAcpiState *s, MemoryRegion *subregion, MemoryRegionOps *ops,
-                     const char *name, hwaddr addr, uint64_t size)
+static void add_bank(FchAcpiState *s, MemoryRegion *subregion,
+                     const MemoryRegionOps *ops, const char *name,
+                     hwaddr addr, uint64_t size)
 {
     memory_region_init_io(subregion, OBJECT(s), ops, s, name, size);
     memory_region_add_subregion(&s->regs, addr, subregion);
@@ -221,16 +223,21 @@ static void fch_acpi_init(Object *obj)
 
     memory_region_init(&s->regs, OBJECT(s), "fch-acpi", TOTAL_SIZE);
 
-    add_bank(s, &s->regs_pm,    &fch_acpi_pm_ops,    "fch-acpi-pm",    PMIO_BASE,  PMIO_SIZE);
-    add_bank(s, &s->regs_acpi,  &fch_acpi_acpi_ops,  "fch-acpi-acpi",  ACPI_BASE,  ACPI_SIZE);
-    add_bank(s, &s->regs_aoac,  &fch_acpi_aoac_ops,  "fch-acpi-aoac",  AOAC_BASE,  AOAC_SIZE);
+    add_bank(s, &s->regs_pm,    &fch_acpi_pm_ops,
+             "fch-acpi-pm",    PMIO_BASE,  PMIO_SIZE);
+    add_bank(s, &s->regs_acpi,  &fch_acpi_acpi_ops,
+             "fch-acpi-acpi",  ACPI_BASE,  ACPI_SIZE);
+    add_bank(s, &s->regs_aoac,  &fch_acpi_aoac_ops,
+             "fch-acpi-aoac",  AOAC_BASE,  AOAC_SIZE);
 
-    memory_region_init_io(&s->regs_unimp, OBJECT(s), &fch_acpi_unimp_ops, s, "fch-acpi-unimp", TOTAL_SIZE);
+    memory_region_init_io(&s->regs_unimp, OBJECT(s), &fch_acpi_unimp_ops, s,
+                          "fch-acpi-unimp", TOTAL_SIZE);
     memory_region_add_subregion_overlap(&s->regs, 0, &s->regs_unimp, -1000);
 
     sysbus_init_mmio(sbd, &s->regs);
 
-    memory_region_init_alias(&s->regs_alias, OBJECT(s), "fch-acpi", &s->regs, 0, TOTAL_SIZE);
+    memory_region_init_alias(&s->regs_alias, OBJECT(s), "fch-acpi", &s->regs,
+                             0, TOTAL_SIZE);
     sysbus_init_mmio(sbd, &s->regs_alias);
 }
 
@@ -238,8 +245,9 @@ static void fch_acpi_realize(DeviceState *dev, Error **errp)
 {
     FchAcpiState *s = FCH_ACPI(dev);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->smbus), errp))
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->smbus), errp)) {
         return;
+    }
     memory_region_add_subregion(&s->regs, SMBUS_BASE, sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->smbus), 0));
 }
 

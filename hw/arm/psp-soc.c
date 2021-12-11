@@ -43,73 +43,95 @@ static void psp_soc_realize(DeviceState *dev, Error **errp)
 {
     PspSocState *pss = PSP_SOC(dev);
 
-    // CPU
+    /* CPU */
     object_initialize_child(OBJECT(dev), "cpu", &pss->cpu, pss->cpu_type);
     if (!qdev_realize(DEVICE(&pss->cpu), NULL, errp)) {
         return;
     }
 
-    // RAM
+    /* RAM */
     memory_region_add_subregion(get_system_memory(), 0, pss->ram);
 
-    // SOC regs
+    /* SOC regs */
     {
-        if (!sysbus_realize(SYS_BUS_DEVICE(&pss->soc_regs), errp))
+        if (!sysbus_realize(SYS_BUS_DEVICE(&pss->soc_regs), errp)) {
             return;
+        }
 
-        // create regs region
-        memory_region_init(&pss->soc_regs_region_public, OBJECT(dev), "soc-regs-public", 0x10000);
-        memory_region_init(&pss->soc_regs_region_private, OBJECT(dev), "soc-regs-private", 0x10000);
-        // map the default registers
-        memory_region_add_subregion_overlap(&pss->soc_regs_region_public, 0, sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->soc_regs), 0), -500);
-        memory_region_add_subregion_overlap(&pss->soc_regs_region_private, 0, sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->soc_regs), 1), -500);
-        // map registers
-        memory_region_add_subregion(get_system_memory(), 0x03010000, &pss->soc_regs_region_public);
-        memory_region_add_subregion(get_system_memory(), 0x03200000, &pss->soc_regs_region_private);
+        /* create regs region */
+        memory_region_init(&pss->soc_regs_region_public, OBJECT(dev),
+                           "soc-regs-public", 0x10000);
+        memory_region_init(&pss->soc_regs_region_private, OBJECT(dev),
+                           "soc-regs-private", 0x10000);
+        /* map the default registers */
+        memory_region_add_subregion_overlap(&pss->soc_regs_region_public, 0,
+                                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->soc_regs), 0), -500);
+        memory_region_add_subregion_overlap(&pss->soc_regs_region_private, 0,
+                                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->soc_regs), 1), -500);
+        /* map registers */
+        memory_region_add_subregion(get_system_memory(), 0x03010000,
+                                    &pss->soc_regs_region_public);
+        memory_region_add_subregion(get_system_memory(), 0x03200000,
+                                    &pss->soc_regs_region_private);
     }
 
-    // Interrupt controller
-    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->interrupt_controller), errp))
+    /* Interrupt controller */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->interrupt_controller), errp)) {
         return;
-    memory_region_add_subregion(&pss->soc_regs_region_public, 0x200, sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->interrupt_controller), 0));
-    memory_region_add_subregion(&pss->soc_regs_region_private, 0x200, sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->interrupt_controller), 1));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&pss->interrupt_controller), 0, qdev_get_gpio_in(DEVICE(&pss->cpu), ARM_CPU_FIQ));
+    }
+    memory_region_add_subregion(&pss->soc_regs_region_public, 0x200,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->interrupt_controller), 0));
+    memory_region_add_subregion(&pss->soc_regs_region_private, 0x200,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->interrupt_controller), 1));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&pss->interrupt_controller), 0,
+                                      qdev_get_gpio_in(DEVICE(&pss->cpu), ARM_CPU_FIQ));
 
-    // Timer
-    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->timer), errp))
+    /* Timer */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->timer), errp)) {
         return;
-    memory_region_add_subregion(&pss->soc_regs_region_public, 0x400, sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->timer), 0));
+    }
+    memory_region_add_subregion(&pss->soc_regs_region_public, 0x400,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(&pss->timer), 0));
     sysbus_connect_irq(SYS_BUS_DEVICE(&pss->timer), 0, qdev_get_gpio_in(DEVICE(&pss->interrupt_controller), 0x60));
 
-    // SMN
-    object_property_set_link(OBJECT(&pss->smn_bridge), "source-memory", OBJECT(pss->smn_region), &error_fatal);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->smn_bridge), errp))
+    /* SMN */
+    object_property_set_link(OBJECT(&pss->smn_bridge), "source-memory",
+                             OBJECT(pss->smn_region), &error_fatal);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->smn_bridge), errp)) {
         return;
+    }
     sysbus_mmio_map(SYS_BUS_DEVICE(&pss->smn_bridge), 0, 0x03220000);
     sysbus_mmio_map(SYS_BUS_DEVICE(&pss->smn_bridge), 1, 0x01000000);
 
-    // X86
-    object_property_set_link(OBJECT(&pss->x86_bridge), "source-memory", OBJECT(pss->x86_region), &error_fatal);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->x86_bridge), errp))
+    /* X86 */
+    object_property_set_link(OBJECT(&pss->x86_bridge), "source-memory",
+                             OBJECT(pss->x86_region), &error_fatal);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->x86_bridge), errp)) {
         return;
+    }
     sysbus_mmio_map(SYS_BUS_DEVICE(&pss->x86_bridge), 0, 0x03230000);
     sysbus_mmio_map(SYS_BUS_DEVICE(&pss->x86_bridge), 1, 0x04000000);
 
-    // CCP
-    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->ccp), errp))
+    /* CCP */
+    if (!sysbus_realize(SYS_BUS_DEVICE(&pss->ccp), errp)) {
         return;
+    }
     sysbus_mmio_map(SYS_BUS_DEVICE(&pss->ccp), 0, 0x03000000);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&pss->ccp), 0, qdev_get_gpio_in(DEVICE(&pss->interrupt_controller), 0x15));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&pss->ccp), 0,
+                       qdev_get_gpio_in(DEVICE(&pss->interrupt_controller), 0x15));
 
-    // ???
+    /* ??? */
     create_unimplemented_device("dev0321", 0x03210000, 0x10000);
 
 }
 
 static Property psp_soc_props[] = {
-    DEFINE_PROP_LINK("ram", PspSocState, ram, TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_LINK("smn-memory", PspSocState, smn_region, TYPE_MEMORY_REGION, MemoryRegion *),
-    DEFINE_PROP_LINK("x86-memory", PspSocState, x86_region, TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_LINK("ram", PspSocState, ram,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_LINK("smn-memory", PspSocState, smn_region,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_LINK("x86-memory", PspSocState, x86_region,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_STRING("cpu-type", PspSocState, cpu_type),
     DEFINE_PROP_END_OF_LIST()
 };

@@ -27,8 +27,6 @@
 
 #include "hw/ssi/fch-spi.h"
 
-// 1e 1f 00 0c
-
 REG32(SPI_CNTRL0,       0x00)
     FIELD(SPI_CNTRL0, SPI_OPCODE,                0, 8)
     FIELD(SPI_CNTRL0, EXECUTE_OPCODE,           16, 1)
@@ -54,22 +52,23 @@ static uint64_t fch_spi_read(void *opaque, hwaddr offset, unsigned size)
 {
     int res = 0;
 
-    switch(offset) {
+    switch (offset) {
     case A_SPI_CNTRL0:
         break;
     case A_SPI_CNTRL1:
         res = 0x18;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                  "(offset 0x%lx)\n",
+                  __func__, offset);
 
     return res;
 }
 
-static void fch_spi_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void fch_spi_write(void *opaque, hwaddr offset,
+                          uint64_t data, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case A_SPI_EXT_REG_INDX:
     case A_SPI_EXT_REG_DATA:
     case A_SPI_CNTRL0:
@@ -77,11 +76,11 @@ static void fch_spi_write(void *opaque, hwaddr offset, uint64_t data, unsigned s
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
 
-MemoryRegionOps fch_spi_ops = {
+const MemoryRegionOps fch_spi_ops = {
     .read = fch_spi_read,
     .write = fch_spi_write,
     .valid.min_access_size = 1,
@@ -94,7 +93,8 @@ static void fch_spi_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     FchSpiState *s = FCH_SPI(obj);
 
-    memory_region_init_io(&s->regs_region, OBJECT(s), &fch_spi_ops, s, "fch-spi", 0x80);
+    memory_region_init_io(&s->regs_region, OBJECT(s), &fch_spi_ops, s,
+                          "fch-spi", 0x80);
     sysbus_init_mmio(sbd, &s->regs_region);
 }
 

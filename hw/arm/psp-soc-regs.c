@@ -54,43 +54,44 @@ REG32(PUB_CLOCK1,           0x10C)
 
 REG32(PUB_BL_VERSION2,      0x9EC)
 
-static uint64_t psp_soc_regs_public_read(void *opaque, hwaddr offset, unsigned size)
+static uint64_t psp_soc_regs_public_read(void *opaque, hwaddr offset,
+                                         unsigned size)
 {
-    PspSocRegsState *psrs = PSP_SOC_REGS(opaque);
+    PspSocRegsState *s = PSP_SOC_REGS(opaque);
 
-    switch(offset) {
+    switch (offset) {
     case A_PUB_SERIAL_PORT_ENABLE:
-        return psrs->serial_enabled;
+        return s->serial_enabled;
     case A_PUB_CLOCK0:
     case A_PUB_CLOCK1:
         return 0;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                  "(offset 0x%lx)\n", __func__, offset);
 
     return 0;
 }
 
-static void psp_soc_regs_public_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void psp_soc_regs_public_write(void *opaque, hwaddr offset,
+                                      uint64_t data, unsigned size)
 {
-    PspSocRegsState *psrs = PSP_SOC_REGS(opaque);
+    PspSocRegsState *s = PSP_SOC_REGS(opaque);
 
-    switch(offset) {
+    switch (offset) {
     case A_PUB_SERIAL_PORT_ENABLE:
-        psrs->serial_enabled = (data != 0);
+        s->serial_enabled = (data != 0);
         return;
     case A_PUB_BL_VERSION2:
         return;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
 
-MemoryRegionOps psp_soc_regs_public_ops = {
+const MemoryRegionOps psp_soc_regs_public_ops = {
     .read = psp_soc_regs_public_read,
     .write = psp_soc_regs_public_write,
     .valid.min_access_size = 4,
@@ -99,33 +100,35 @@ MemoryRegionOps psp_soc_regs_public_ops = {
 };
 
 
-static uint64_t psp_soc_regs_private_read(void *opaque, hwaddr offset, unsigned size)
+static uint64_t psp_soc_regs_private_read(void *opaque, hwaddr offset,
+                                          unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case A_PRIV_SOC_REGS_TYPE:
         return PSP_SOC_MAGIC << 8;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                 "(offset 0x%lx)\n",
+                 __func__, offset);
 
     return 0;
 }
 
-static void psp_soc_regs_private_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void psp_soc_regs_private_write(void *opaque, hwaddr offset,
+                                       uint64_t data, unsigned size)
 {
-    switch(offset) {
+    switch (offset) {
     case A_PRIV_POSTCODE:
         return;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
 
-MemoryRegionOps psp_soc_regs_private_ops = {
+const MemoryRegionOps psp_soc_regs_private_ops = {
     .read = psp_soc_regs_private_read,
     .write = psp_soc_regs_private_write,
     .valid.min_access_size = 4,
@@ -137,14 +140,17 @@ MemoryRegionOps psp_soc_regs_private_ops = {
 static void psp_soc_regs_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    PspSocRegsState *psrs = PSP_SOC_REGS(obj);
+    PspSocRegsState *s = PSP_SOC_REGS(obj);
 
-    // Init the registers access
-    memory_region_init_io(&psrs->regs_region_public, OBJECT(psrs), &psp_soc_regs_public_ops, psrs, "soc-regs-public", 0x10000);
-    sysbus_init_mmio(sbd, &psrs->regs_region_public);
+    memory_region_init_io(&s->regs_region_public, OBJECT(s),
+                          &psp_soc_regs_public_ops, s,
+                          "soc-regs-public", 0x10000);
+    sysbus_init_mmio(sbd, &s->regs_region_public);
 
-    memory_region_init_io(&psrs->regs_region_private, OBJECT(psrs), &psp_soc_regs_private_ops, psrs, "soc-regs-private", 0x10000);
-    sysbus_init_mmio(sbd, &psrs->regs_region_private);
+    memory_region_init_io(&s->regs_region_private, OBJECT(s),
+                          &psp_soc_regs_private_ops, s,
+                          "soc-regs-private", 0x10000);
+    sysbus_init_mmio(sbd, &s->regs_region_private);
 }
 
 static void psp_soc_regs_realize(DeviceState *dev, Error **errp)

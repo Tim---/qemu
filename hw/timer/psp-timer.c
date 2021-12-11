@@ -48,25 +48,26 @@ static uint64_t psp_timer_read(void *opaque, hwaddr offset, unsigned size)
     PspTimerState *pts = PSP_TIMER(opaque);
     size_t index = offset / 4;
 
-    switch(index) {
+    switch (index) {
     case R_TICKS_VALUE:
-        pts->ticks += 10000; // TODO: dirty hack !
+        pts->ticks += 10000; /* TODO: dirty hack ! */
         return pts->ticks;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
-                __FUNCTION__, offset);
+                __func__, offset);
 
     return 0;
 }
 
-static void psp_timer_write(void *opaque, hwaddr offset, uint64_t data, unsigned size)
+static void psp_timer_write(void *opaque, hwaddr offset,
+                            uint64_t data, unsigned size)
 {
     PspTimerState *pts = PSP_TIMER(opaque);
     size_t index = offset / 4;
 
-    switch(index) {
+    switch (index) {
     case R_INT_CTRL0:
         assert(data == 0x10000 || data == 0x10100 || data == 0x10001);
         return;
@@ -76,13 +77,14 @@ static void psp_timer_write(void *opaque, hwaddr offset, uint64_t data, unsigned
     case R_INT_ENABLE:
         assert(data == 0 || data == 1);
         pts->int_enable = (bool)data;
-        if(pts->int_enable)
+        if (pts->int_enable) {
             timer_mod(pts->qemu_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 1000);
-        else
+        } else {
             timer_del(pts->qemu_timer);
+        }
         return;
     case R_INT_FREQ:
-        //uint32_t freq = data / 0x19;
+        /* uint32_t freq = data / 0x19; */
         return;
     case R_TICKS_CFG:
         assert(data == 0 || data == 0x101);
@@ -90,15 +92,15 @@ static void psp_timer_write(void *opaque, hwaddr offset, uint64_t data, unsigned
     case R_TICKS_REG0 ... R_TICKS_REG6:
     case R_TICKS_VALUE:
         assert(data == 0);
-        return; // Unknown
+        return;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
-                  __FUNCTION__, offset, data);
+                  __func__, offset, data);
 }
 
 
-MemoryRegionOps psp_timer_ops = {
+const MemoryRegionOps psp_timer_ops = {
     .read = psp_timer_read,
     .write = psp_timer_write,
     .valid.min_access_size = 4,
@@ -119,8 +121,8 @@ static void psp_timer_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PspTimerState *pts = PSP_TIMER(obj);
 
-    // Init the registers access
-    memory_region_init_io(&pts->regs_region, OBJECT(pts), &psp_timer_ops, pts, "psp-timer", 0x100);
+    memory_region_init_io(&pts->regs_region, OBJECT(pts), &psp_timer_ops, pts,
+                          "psp-timer", 0x100);
     sysbus_init_mmio(sbd, &pts->regs_region);
 
     pts->qemu_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, psp_timer_tick_expired, pts);

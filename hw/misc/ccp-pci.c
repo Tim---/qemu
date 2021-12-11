@@ -37,7 +37,7 @@ static void ccp_pci_int_handler(void *opaque, int irq, int level)
 {
     PCIDevice *s = PCI_DEVICE(opaque);
 
-    if(level && msi_enabled(s)) {
+    if (level && msi_enabled(s)) {
         msi_notify(s, 0);
     }
 }
@@ -51,8 +51,9 @@ static void ccp_pci_pci_realize(PCIDevice *pci_dev, Error **errp)
     memory_region_init(&s->mmio, OBJECT(s), "ccp-pci-mmio", 0x100000);
     memory_region_add_subregion(&s->mmio, 0, sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->ccp), 0));
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ccp), errp))
+    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ccp), errp)) {
         return;
+    }
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->ccp), 0, qdev_get_gpio_in(DEVICE(pci_dev), 0));
     pci_register_bar(pci_dev, CCP_PCI_MMIO_IDX, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
 
@@ -60,7 +61,7 @@ static void ccp_pci_pci_realize(PCIDevice *pci_dev, Error **errp)
         hw_error("Failed to initialize PCIe capability");
     }
 
-    if(msi_init(PCI_DEVICE(s), 0xa0, 1, true, false, NULL)) {
+    if (msi_init(PCI_DEVICE(s), 0xa0, 1, true, false, NULL)) {
         hw_error("Failed to initialize MSI");
     }
 }

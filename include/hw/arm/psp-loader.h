@@ -6,6 +6,6 @@ typedef enum {
     PSP_LOAD_SECURED_OS,
 } psp_load_type_e;
 
-bool psp_load(const char * filename, psp_load_type_e load_type, uint32_t target_id);
+bool psp_load(const char *filename, psp_load_type_e load_type, uint32_t target_id);
 
 #endif
