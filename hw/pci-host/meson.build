@@ -34,3 +34,5 @@ specific_ss.add(when: 'CONFIG_PCI_POWERNV', if_true: files(
   'pnv_phb4.c',
   'pnv_phb4_pec.c'
 ))
+
+specific_ss.add(when: 'CONFIG_PSP', if_true: files('zen-pci-root.c'))

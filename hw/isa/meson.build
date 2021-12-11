@@ -9,3 +9,4 @@ softmmu_ss.add(when: 'CONFIG_SMC37C669', if_true: files('smc37c669-superio.c'))
 softmmu_ss.add(when: 'CONFIG_VT82C686', if_true: files('vt82c686.c'))
 
 specific_ss.add(when: 'CONFIG_LPC_ICH9', if_true: files('lpc_ich9.c'))
+specific_ss.add(when: 'CONFIG_PSP', if_true: files('fch-lpc.c'))

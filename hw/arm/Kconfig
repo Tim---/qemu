@@ -548,3 +548,8 @@ config ARMSSE
     select UNIMP
     select SSE_COUNTER
     select SSE_TIMER
+
+config PSP
+    bool
+    select CCP
+    select ISA_BUS

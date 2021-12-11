@@ -253,3 +253,10 @@ virt_ctrl_write(void *dev, unsigned int addr, unsigned int size, uint64_t value)
 virt_ctrl_reset(void *dev) "ctrl: %p"
 virt_ctrl_realize(void *dev) "ctrl: %p"
 virt_ctrl_instance_init(void *dev) "ctrl: %p"
+
+# ccp-ops.c
+ccp_passthru(uint64_t src, const char *src_type, uint64_t dst, const char *dst_type, int length) "src=0x%"PRIx64"[%s] dst=0x%"PRIx64"[%s] length=0x%x"
+ccp_zlib(uint64_t src, const char *src_type, uint64_t dst, const char *dst_type, int length) "src=0x%"PRIx64"[%s] dst=0x%"PRIx64"[%s] length=0x%x"
+ccp_sha(const char *type, uint64_t src, const char *src_type, uint64_t dst, const char *dst_type, int length) "%s src=0x%"PRIx64"[%s] dst=0x%"PRIx64"[%s] length=0x%x"
+ccp_aes(const char *type, const char *mode, uint64_t src, const char *src_type, uint64_t dst, const char *dst_type, uint64_t key, const char *key_type, int length) "%s-%s src=0x%"PRIx64"[%s] dst=0x%"PRIx64"[%s] key=0x%"PRIx64"[%s] length=0x%x"
+ccp_rsa(uint64_t src, const char *src_type, uint64_t dst, const char *dst_type, uint64_t key, const char *key_type, int length) "src=0x%"PRIx64"[%s] dst=0x%"PRIx64"[%s] key=0x%"PRIx64"[%s] length=0x%x"
