@@ -38,28 +38,174 @@ typedef enum {
     EMU_EMULATION2 = 0x51e051e0,
 } emu_type_e;
 
-static uint64_t psp_umc_read(void *opaque, hwaddr offset, unsigned size)
+static uint64_t psp_umc_ch_read(PspUmcState *s, hwaddr offset)
 {
+    switch(offset) {
+    case 0x0:
+    case 0x4:
+    case 0x8:
+    case 0xc:
+    case 0x30:
+    case 0x40:
+    case 0x50:
+    case 0x54:
+    case 0x70:
+    case 0x74:
+    case 0x80:
+    case 0x84:
+    case 0xc8:
+    case 0xcc:
+    case 0xd0:
+    case 0xd4:
+    case 0xe8:
+    case 0xec:
+    case 0x100:
+    case 0x104:
+    case 0x108:
+    case 0x10c:
+    case 0x110:
+    case 0x114:
+    case 0x11c:
+    case 0x120:
+    case 0x124:
+    case 0x12c:
+    case 0x138:
+    case 0x14c:
+    case 0x150:
+    case 0x1e0:
+    case 0x200:
+    case 0x22c:
+    case 0xd6c:
+    case 0xdf0:
+    case 0xdf4:
+    case 0xf28:
+    case 0xf2c:
+        break;
+    }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
                 __func__, offset);
 
+    return 0;
+}
+
+static uint64_t psp_umc_ctrl_read(PspUmcState *s, hwaddr offset)
+{
+    switch(offset) {
+    case 0x1000:
+    case 0x1050:
+    case 0x11ac:
+    case 0x11b0:
+    case 0x11b4:
+    case 0x11b8:
+    case 0x11bc:
+    case 0x11e4:
+    case 0x1804:
+    case 0x1808:
+        break;
+    }
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
+                "(offset 0x%lx)\n",
+                __func__, offset);
+
+    return 0xffffffff;
+}
+
+static void psp_umc_ch_write(PspUmcState *s, hwaddr offset, uint64_t data)
+{
+    switch(offset) {
+    case 0x0:
+    case 0x4:
+    case 0x20:
+    case 0x30:
+    case 0x40:
+    case 0x50:
+    case 0x54:
+    case 0x70:
+    case 0x74:
+    case 0x80:
+    case 0x84:
+    case 0xc8:
+    case 0xcc:
+    case 0xd0:
+    case 0xd4:
+    case 0xe8:
+    case 0xec:
+    case 0xf0:
+    case 0xf4:
+    case 0x100:
+    case 0x104:
+    case 0x108:
+    case 0x10c:
+    case 0x110:
+    case 0x114:
+    case 0x11c:
+    case 0x120:
+    case 0x124:
+    case 0x12c:
+    case 0x138:
+    case 0x144:
+    case 0x148:
+    case 0x150:
+    case 0x1e0:
+    case 0x200:
+    case 0x22c:
+    case 0xa00:
+    case 0xa04:
+    case 0xa08:
+    case 0xa0c:
+    case 0xf28:
+    case 0xf2c:
+        break;
+    }
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(offset 0x%lx, value 0x%lx)\n",
+                  __func__, offset, data);
+}
+
+static void psp_umc_ctrl_write(PspUmcState *s, hwaddr offset, uint64_t data)
+{
+    switch(offset) {
+    case 0x1000:
+    case 0x11b0:
+    case 0x11b4:
+    case 0x11b8:
+    case 0x11bc:
+    case 0x11e4:
+    case 0x1800:
+    case 0x1804:
+        break;
+    }
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(offset 0x%lx, value 0x%lx)\n",
+                  __func__, offset, data);
+}
+
+static uint64_t psp_umc_read(void *opaque, hwaddr offset, unsigned size)
+{
+    PspUmcState *s = PSP_UMC(opaque);
+    
     if (offset < 0x1000) {
-        return 0;
+        return psp_umc_ch_read(s, offset);
     } else {
-        return 0xffffffff;
+        return psp_umc_ctrl_read(s, offset);
     }
 }
 
 static void psp_umc_write(void *opaque, hwaddr offset,
                           uint64_t data, unsigned size)
 {
-    switch (offset) {
+    PspUmcState *s = PSP_UMC(opaque);
+
+    if (offset < 0x1000) {
+        psp_umc_ch_write(s, offset, data);
+    } else {
+        psp_umc_ctrl_write(s, offset, data);
     }
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
-                  "(offset 0x%lx, value 0x%lx)\n",
-                  __func__, offset, data);
 }
 
 
