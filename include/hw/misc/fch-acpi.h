@@ -22,6 +22,9 @@ struct FchAcpiState {
     MemoryRegion regs_pm;
     MemoryRegion regs_acpi;
     MemoryRegion regs_smbus;
+    MemoryRegion regs_iomux;
+    MemoryRegion regs_misc;
+    MemoryRegion regs_gpio1;
     MemoryRegion regs_aoac;
     MemoryRegion regs_unimp;
 

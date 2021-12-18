@@ -69,6 +69,9 @@ REG32(IOMUX_SPKR_AGPIO91,   0x5b)
 #define MISC_BASE   0x0E00
 #define MISC_SIZE   0x0100
 
+#define GPIO1_BASE   0x1600
+#define GPIO1_SIZE   0x0100
+
 #define AOAC_BASE   0x1e00
 #define AOAC_SIZE   0x0100
 
@@ -83,10 +86,10 @@ static uint64_t fch_acpi_pm_read(void *opaque, hwaddr offset, unsigned size)
         return 0;
     case A_PM_S5_RESET_STAT:
         return 0;
-    case 0x0:
-    case 0x44:
-    case 0xec:
-        break;
+    case A_PM_DECODE_EN:
+    case A_PM_BOOT_TIMER_EN:
+    case A_PM_LPC_GATING:
+        break; /* TODO */
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
@@ -101,10 +104,10 @@ static void fch_acpi_pm_write(void *opaque, hwaddr offset, uint64_t data, unsign
     case A_PM_ACPI_CONFIG:
         assert(data == 1); /* Enable ACPI decoding */
         return;
-    case 0x0:
-    case 0x44:
-    case 0xec:
-        break;
+    case A_PM_DECODE_EN:
+    case A_PM_BOOT_TIMER_EN:
+    case A_PM_LPC_GATING:
+        break; /* TODO */
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
@@ -146,6 +149,118 @@ static void fch_acpi_acpi_write(void *opaque, hwaddr offset,
 const MemoryRegionOps fch_acpi_acpi_ops = {
     .read = fch_acpi_acpi_read,
     .write = fch_acpi_acpi_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
+};
+
+/*
+ * IOMux registers
+ */
+
+static uint64_t fch_acpi_iomux_read(void *opaque, hwaddr offset, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
+                "(offset 0x%lx)\n",
+                __func__, offset);
+
+    return 0;
+}
+
+static void fch_acpi_iomux_write(void *opaque, hwaddr offset,
+                                 uint64_t data, unsigned size)
+{
+    switch(offset) {
+    case 0x5b:
+    case 0x62:
+        break;
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(offset 0x%lx, value 0x%lx)\n",
+                  __func__, offset, data);
+}
+
+const MemoryRegionOps fch_acpi_iomux_ops = {
+    .read = fch_acpi_iomux_read,
+    .write = fch_acpi_iomux_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
+};
+
+/*
+ * MISC registers
+ */
+
+static uint64_t fch_acpi_misc_read(void *opaque, hwaddr offset, unsigned size)
+{
+    switch (offset) {
+    case 0xd8:
+    case 0xdc:
+    case 0xe0:
+    case 0xe4:
+    case 0xe8:
+    case 0xec:
+        break;
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
+                "(offset 0x%lx)\n",
+                __func__, offset);
+
+    return 0;
+}
+
+static void fch_acpi_misc_write(void *opaque, hwaddr offset,
+                                uint64_t data, unsigned size)
+{
+    switch(offset) {
+    case 0xb0:
+    case 0xd8:
+    case 0xdc:
+    case 0xe0:
+    case 0xe4:
+    case 0xe8:
+    case 0xec:
+        break;
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(offset 0x%lx, value 0x%lx)\n",
+                  __func__, offset, data);
+}
+
+const MemoryRegionOps fch_acpi_misc_ops = {
+    .read = fch_acpi_misc_read,
+    .write = fch_acpi_misc_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
+};
+
+/*
+ * GPIO1 registers
+ */
+
+static uint64_t fch_acpi_gpio1_read(void *opaque, hwaddr offset, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
+                "(offset 0x%lx)\n",
+                __func__, offset);
+
+    return 0;
+}
+
+static void fch_acpi_gpio1_write(void *opaque, hwaddr offset,
+                                uint64_t data, unsigned size)
+{
+    switch (offset) {
+    case 0x8a:
+        break;
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(offset 0x%lx, value 0x%lx)\n",
+                  __func__, offset, data);
+}
+
+const MemoryRegionOps fch_acpi_gpio1_ops = {
+    .read = fch_acpi_gpio1_read,
+    .write = fch_acpi_gpio1_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 8,
 };
@@ -235,8 +350,14 @@ static void fch_acpi_init(Object *obj)
              "fch-acpi-pm",    PMIO_BASE,  PMIO_SIZE);
     add_bank(s, &s->regs_acpi,  &fch_acpi_acpi_ops,
              "fch-acpi-acpi",  ACPI_BASE,  ACPI_SIZE);
+    add_bank(s, &s->regs_iomux, &fch_acpi_iomux_ops,
+             "fch-acpi-iomux", IOMUX_BASE, IOMUX_SIZE);
+    add_bank(s, &s->regs_misc,  &fch_acpi_misc_ops,
+             "fch-acpi-misc",  MISC_BASE,  MISC_SIZE);
     add_bank(s, &s->regs_aoac,  &fch_acpi_aoac_ops,
              "fch-acpi-aoac",  AOAC_BASE,  AOAC_SIZE);
+    add_bank(s, &s->regs_gpio1, &fch_acpi_gpio1_ops,
+             "fch-acpi-aoac",  GPIO1_BASE, GPIO1_SIZE);
 
     memory_region_init_io(&s->regs_unimp, OBJECT(s), &fch_acpi_unimp_ops, s,
                           "fch-acpi-unimp", TOTAL_SIZE);
