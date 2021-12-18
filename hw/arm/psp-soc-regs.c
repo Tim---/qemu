@@ -65,6 +65,20 @@ static uint64_t psp_soc_regs_public_read(void *opaque, hwaddr offset,
     case A_PUB_CLOCK0:
     case A_PUB_CLOCK1:
         return 0;
+    case 0x4:
+    case 0x104:
+    case 0x518:
+    case 0x51c:
+    case 0x570:
+    case 0x698:
+    case 0x69c:
+    case 0x6a0:
+    case 0x6a4:
+    case 0x6a8:
+    case 0x6ac:
+    case 0x984:
+    case 0x998:
+        break;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
@@ -84,6 +98,35 @@ static void psp_soc_regs_public_write(void *opaque, hwaddr offset,
         return;
     case A_PUB_BL_VERSION2:
         return;
+    case 0x44:
+    case 0x300:
+    case 0x304:
+    case 0x308:
+    case 0x30c:
+    case 0x514:
+    case 0x544:
+    case 0x570:
+    case 0x690:
+    case 0x698:
+    case 0x69c:
+    case 0x6a0:
+    case 0x6a4:
+    case 0x6a8:
+    case 0x6ac:
+    case 0x70c:
+    case 0x710:
+    case 0x714:
+    case 0x71c:
+    case 0x984:
+    case 0x994:
+    case 0x998:
+    case 0x9e8:
+    case 0x9f0:
+    case 0x9f4:
+    case 0x9f8:
+    case 0xa00:
+    case 0xa44:
+        break;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
@@ -106,6 +149,8 @@ static uint64_t psp_soc_regs_private_read(void *opaque, hwaddr offset,
     switch (offset) {
     case A_PRIV_SOC_REGS_TYPE:
         return PSP_SOC_MAGIC << 8;
+    case 0xf0:
+        break;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
@@ -121,6 +166,11 @@ static void psp_soc_regs_private_write(void *opaque, hwaddr offset,
     switch (offset) {
     case A_PRIV_POSTCODE:
         return;
+    case 0xbc:
+    case 0xa0c:
+    case 0xa10:
+    case 0xa14:
+        break;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",

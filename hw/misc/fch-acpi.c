@@ -83,6 +83,10 @@ static uint64_t fch_acpi_pm_read(void *opaque, hwaddr offset, unsigned size)
         return 0;
     case A_PM_S5_RESET_STAT:
         return 0;
+    case 0x0:
+    case 0x44:
+    case 0xec:
+        break;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
@@ -97,6 +101,10 @@ static void fch_acpi_pm_write(void *opaque, hwaddr offset, uint64_t data, unsign
     case A_PM_ACPI_CONFIG:
         assert(data == 1); /* Enable ACPI decoding */
         return;
+    case 0x0:
+    case 0x44:
+    case 0xec:
+        break;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
