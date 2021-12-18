@@ -132,7 +132,7 @@ static void create_x86_dirt(PspMachineState *pms)
     /* Well, maybe it's just... RAM ? */
     create_ram("x86-apob",      &pms->x86_region_0000, 0x04000000, 0x00010000);
     create_ram("x86-bin",       &pms->x86_region_0000, 0x09d80000, 0x00400000);
-    create_ram("write-pattern", &pms->x86_region_fffd, 0xf7000000, 0x00000300);
+    create_ram("write-pattern", &pms->x86_region_fffd, 0xf7000000, 0x00001000);
     create_ram("more-ram1",     &pms->x86_region_fffd, 0xfb000000, 0x01000000);
 }
 
