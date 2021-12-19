@@ -22,6 +22,8 @@
 #include "exec/address-spaces.h"
 #include "qemu/qemu-print.h"
 #include "qemu/error-report.h"
+#include "crypto/cipher.h"
+#include "qapi/error.h"
 
 #include "psp-loader-internal.h"
 #include "hw/arm/psp-loader.h"
@@ -157,6 +159,72 @@ static bool copy_dir_entry(GMappedFile *mapped_file, hwaddr dst,
     return true;
 }
 
+/* Depends on the PSP version */
+uint8_t hardcoded_key[] = {
+    0x4c, 0x77, 0x63, 0x65, 0x32, 0xfe, 0x4c, 0x6f,
+    0xd6, 0xb9, 0xd6, 0xd7, 0xb5, 0x1e, 0xde, 0x59
+};
+
+static bool copy_firmware(GMappedFile *mapped_file, hwaddr dst,
+                          uint64_t offset, uint32_t size)
+{
+    QCryptoCipher *cipher;
+
+    fw_hdr_t *hdr = map_get_pointer(mapped_file, offset, 0x100);
+
+    if (hdr == NULL) {
+        return false;
+    }
+
+    memory_write(dst, hdr, 0x100);
+
+    size_t data_size = hdr->rom_size - 0x100;
+    uint8_t *data = map_get_pointer(mapped_file, offset + 0x100, data_size);
+
+    if (hdr->is_encrypted) {
+        g_autofree uint8_t *dec = g_malloc(data_size);
+        uint8_t unwrapped_key[16];
+
+
+        {
+            cipher = qcrypto_cipher_new(QCRYPTO_CIPHER_ALG_AES_128,
+                                        QCRYPTO_CIPHER_MODE_ECB,
+                                        hardcoded_key, 16, &error_fatal);
+            if (!cipher) {
+                return false;
+            }
+            if (qcrypto_cipher_decrypt(cipher, hdr->wrapped_key, unwrapped_key,
+                                       16, &error_fatal) < 0) {
+                return false;
+            }
+            qcrypto_cipher_free(cipher);
+        }
+
+        {
+            cipher = qcrypto_cipher_new(QCRYPTO_CIPHER_ALG_AES_128,
+                                        QCRYPTO_CIPHER_MODE_CBC,
+                                        unwrapped_key, 16, &error_fatal);
+            if (!cipher) {
+                return false;
+            }
+            if (qcrypto_cipher_setiv(cipher, hdr->iv, 16, &error_fatal) < 0) {
+                return false;
+            }
+            if (qcrypto_cipher_decrypt(cipher, data, dec, data_size,
+                                       &error_fatal) < 0) {
+                return false;
+            }
+            qcrypto_cipher_free(cipher);
+        }
+
+        memory_write(dst+0x100, dec, data_size);
+    } else {
+        memory_write(dst+0x100, data, data_size);
+    }
+
+    return true;
+}
+
 static bool psp_copy_bootloader(GMappedFile *mapped_file,
                                 psp_directory_header *dir)
 {
@@ -171,7 +239,7 @@ static bool psp_copy_bootloader(GMappedFile *mapped_file,
         return false;
     }
 
-    res = copy_dir_entry(mapped_file, 0, bl_addr & 0x00ffffff, bl_size);
+    res = copy_firmware(mapped_file, 0, bl_addr & 0x00ffffff, bl_size);
     if (res == false) {
         error_report("Could not copy PSP bootloader");
         return false;

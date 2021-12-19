@@ -138,4 +138,32 @@ typedef struct {
     uint8_t DiesPerSocket;
 } PspBootRomServices_t;
 
+typedef struct {
+    uint8_t _1[16];
+    char magic[4];
+    uint32_t size_signed;
+    uint32_t is_encrypted;
+    uint32_t _2;
+    uint8_t iv[16];
+    uint32_t is_signed;
+    uint32_t _3;
+    uint8_t certifying_id[16];
+    uint32_t is_compressed;
+    uint32_t _4;
+    uint32_t size_uncompressed;
+    uint32_t zlib_size;
+    uint32_t _5;
+    uint32_t _6;
+    uint32_t version;
+    uint32_t _7;
+    uint32_t load_addr;
+    uint32_t rom_size;
+    uint32_t _8;
+    uint32_t _9;
+    uint32_t _10;
+    uint32_t _11;
+    uint8_t wrapped_key[16];
+    uint8_t reserved[112];
+} fw_hdr_t;
+
 #endif
