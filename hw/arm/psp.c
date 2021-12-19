@@ -130,6 +130,7 @@ static void create_smn_dirt(PspMachineState *pms)
 static void create_x86_dirt(PspMachineState *pms)
 {
     /* Well, maybe it's just... RAM ? */
+    create_ram("alt-apob",      &pms->x86_region_0000, 0x0a200000, 0x00010000);
     create_ram("x86-apob",      &pms->x86_region_0000, 0x04000000, 0x00010000);
     create_ram("x86-bin",       &pms->x86_region_0000, 0x09d80000, 0x00400000);
     create_ram("write-pattern", &pms->x86_region_fffd, 0xf7000000, 0x00001000);
