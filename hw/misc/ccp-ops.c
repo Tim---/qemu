@@ -942,6 +942,8 @@ int ccp_op_zlib(CcpState *s, struct ccp5_desc * desc)
     strm.next_out = outbuf;
     strm.avail_out = sizeof(outbuf);
 
+    s->zlib_size = 0;
+
     ret = inflateInit(&strm);
     assert(ret == Z_OK);
 
@@ -957,6 +959,7 @@ int ccp_op_zlib(CcpState *s, struct ccp5_desc * desc)
         int out_len = strm.next_out - outbuf;
         do_write(s, outbuf, &dst, out_len);
         dst.addr += out_len;
+        s->zlib_size += out_len;
     }
 
     ret = inflateEnd(&strm);

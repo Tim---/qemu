@@ -27,6 +27,8 @@ struct CcpState {
     uint32_t queue_prio;
     uint32_t clk_gate_ctl;
     uint32_t reg_5064;
+    uint32_t zlib_max_size;
+    uint32_t zlib_size;
 
     ccp_queue_t queues[MAX_HW_QUEUES];
     uint8_t sb[0x20 * 0x80];

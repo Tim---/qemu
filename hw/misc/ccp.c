@@ -43,7 +43,9 @@ REG32(LSB_PRIVATE_MASK_HI,  0x0024)
 
 REG32(CONFIG_0,             0x6000)
 REG32(TRNG_CTL,             0x6008)
-REG32(REG_602C,             0x602C)
+REG32(ZLIB_MAX_SIZE,        0x6020)
+REG32(REG_6024,             0x6024)
+REG32(ZLIB_SIZE,            0x602C)
 REG32(CLK_GATE_CTL,         0x603C)
 REG32(REG_6054,             0x6054)
 
@@ -150,8 +152,8 @@ ccp_mmio_read_generic(CcpState *s, hwaddr addr)
         return 0x0000039c;
     case A_CLK_GATE_CTL:
         return s->clk_gate_ctl;
-    case A_REG_602C:
-        return 0;
+    case A_ZLIB_SIZE:
+        return s->zlib_size;
     case A_REG_6054:
         return s->reg_5064;
     }
@@ -184,6 +186,12 @@ ccp_mmio_write_generic(CcpState *s, hwaddr addr, uint64_t val)
         return;
     case A_CLK_GATE_CTL:
         s->clk_gate_ctl = val;
+        return;
+    case A_ZLIB_MAX_SIZE:
+        s->zlib_max_size = val;
+        return;
+    case A_REG_6024:
+        assert(val == 0);
         return;
     case A_REG_6054:
         s->reg_5064 = val;
