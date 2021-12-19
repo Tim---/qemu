@@ -25,30 +25,22 @@
 #include "hw/timer/psp-timer.h"
 #include "hw/arm/psp-soc-regs.h"
 
-/*
- * Bits 8:15 of "SOC_REGS_TYPE" register seem to define the registers layout
- * The bootloader assigns type 2 if it is zero, and type 3 otherwise
- */
-#define PSP_SOC_MAGIC   0x00
+#define PSP_VERSION     0xbc0a0000
+#define MAJOR(version)  (((version) >> 16) & 0xff)
+#define MINOR(version)  (((version) >> 8) & 0xff)
 
-#if PSP_SOC_MAGIC == 0x00
-#define PSP_SOC_TYPE 2
-#else
-#define PSP_SOC_TYPE 3
-#endif
-
-#if PSP_SOC_TYPE == 2
+#if MINOR(PSP_VERSION) == 0x00
 REG32(PUB_SERIAL_PORT_ENABLE, 0x3C)
 REG32(PUB_BL_VERSION,         0x44)
 #define PRIV_GENERIC_REG_BASE  0xA0
 #else
 REG32(PUB_SERIAL_PORT_ENABLE, 0x40)
 REG32(PUB_BL_VERSION,         0x48)
-#define PRIV_GENERIC_REG_BASE  0xA0
+#define PRIV_GENERIC_REG_BASE  0x90
 #endif
 
-REG32(PRIV_SOC_REGS_TYPE,    0x4c)
-REG32(PRIV_POSTCODE,         PRIV_GENERIC_REG_BASE + 0x14 * 4)
+REG32(PRIV_PSP_VERSION,     0x4c)
+REG32(PRIV_POSTCODE,        PRIV_GENERIC_REG_BASE + 0x14 * 4)
 REG32(PUB_CLOCK0,           0x108)
 REG32(PUB_CLOCK1,           0x10C)
 
@@ -147,8 +139,8 @@ static uint64_t psp_soc_regs_private_read(void *opaque, hwaddr offset,
                                           unsigned size)
 {
     switch (offset) {
-    case A_PRIV_SOC_REGS_TYPE:
-        return PSP_SOC_MAGIC << 8;
+    case A_PRIV_PSP_VERSION:
+        return PSP_VERSION;
     case 0xf0:
         break;
     }
