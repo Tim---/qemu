@@ -115,9 +115,7 @@ static void create_smn_dirt(PspMachineState *pms)
     stub_create("cores-bitmap", &pms->smn_region,   0x0005a870, 4, 0x00000001);
 
     /* some fuses */
-    stub_create("fuses0",       &pms->smn_region,   0x0005d1f8, 4, 0);
-    /* more fuses */
-    stub_create("fuses1",       &pms->smn_region,   0x0005d1fc, 4, 0);
+    create_rom("fuses",         &pms->smn_region,   0x0005d000, 0x200);
 
     /* 0x03000000 -> 0x04000000 looks full of SMU */
     create_ram("smu-ram",       &pms->smn_region,   0x03c00000, 0x00040000);
