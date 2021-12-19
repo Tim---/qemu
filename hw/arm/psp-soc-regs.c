@@ -90,11 +90,11 @@ static uint64_t psp_soc_regs_public_read(void *opaque, hwaddr offset,
 static void psp_soc_regs_public_write(void *opaque, hwaddr offset,
                                       uint64_t data, unsigned size)
 {
-    PspSocRegsState *s = PSP_SOC_REGS(opaque);
+    /* PspSocRegsState *s = PSP_SOC_REGS(opaque); */
 
     switch (offset) {
     case A_PUB_SERIAL_PORT_ENABLE:
-        s->serial_enabled = (data != 0);
+        /* s->serial_enabled = (data != 0); */
         return;
     case A_PUB_BL_VERSION2:
         return;
@@ -205,6 +205,8 @@ static void psp_soc_regs_init(Object *obj)
 
 static void psp_soc_regs_realize(DeviceState *dev, Error **errp)
 {
+    PspSocRegsState *s = PSP_SOC_REGS(dev);
+    s->serial_enabled = 1;
 }
 
 static void psp_soc_regs_class_init(ObjectClass *oc, void *data)
