@@ -152,16 +152,16 @@ static void fch_lpc_config_write(PCIDevice *d, uint32_t addr,
         assert(val == 0x1640);
         return;
     case A_SPI_BASE_ADDR:
-        /*
-         * AltSpiCSEnable = 0
-         * SpiRomEnable = 1
-         * AbortEnable = 0
-         * RouteTpm2Spi = 0
-         * PspSpiMmioSel = 0
-         * Spi_eSpi_BaseAddr = 0xfec10000
+        /* 
+         * assert(val == 0xfec10002);
+         *  AltSpiCSEnable = 0
+         *  SpiRomEnable = 1
+         *  AbortEnable = 0
+         *  RouteTpm2Spi = 0
+         *  PspSpiMmioSel = 0
+         *  Spi_eSpi_BaseAddr = 0xfec10000
          */
-        assert(val == 0xfec10002);
-        return;
+        break;
     case A_CLK_CNTRL:
         /*
          * Lclk1ClkrunOvrid = 1

@@ -123,7 +123,7 @@ static void create_smn_dirt(PspMachineState *pms)
     create_ram("smu-ram",       &pms->smn_region,   0x03c00000, 0x00040000);
     /* MP2_RSMU_FUSESTRAPS */
     stub_create("fusestraps",   &pms->smn_region,   0x03e10024, 4, 1);
-    create_ram("smn-more-apob", &pms->smn_region,   0x03f40000, 0x00010000);
+    create_ram("smn-more-apob", &pms->smn_region,   0x03f40000, 0x00020000);
     create_ram("mp2-sram",      &pms->smn_region,   0x03f50000, 0x00000800);
 }
 
