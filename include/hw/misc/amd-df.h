@@ -15,6 +15,7 @@ struct AmdDfState {
 
     /*< public >*/
     MemoryRegion regs;
+    uint32_t fica_addr;
 };
 
 

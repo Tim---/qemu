@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "hw/registerfields.h"
 
 #include "hw/misc/amd-df.h"
 
@@ -100,8 +101,49 @@ static void amd_df_f3_write(AmdDfState *s, hwaddr offset, uint32_t data)
 
 /* D18F4 */
 
+REG32(FICA_ADDR, 0x50)
+    FIELD(FICA_ADDR, RUN,    0, 2) /* must be one */
+    FIELD(FICA_ADDR, REG,    2, 8) /* multiply by 4 */
+    FIELD(FICA_ADDR, LARGE, 10, 1) /* 64 bits op */
+    FIELD(FICA_ADDR, FUNC,  11, 3)
+    FIELD(FICA_ADDR, NODE,  16, 8)
+REG32(FICA_DATA0, 0x80)
+REG32(FICA_DATA1, 0x84)
+
+static uint32_t fica_read(AmdDfState *s, hwaddr addr)
+{
+    assert(FIELD_EX32(addr, FICA_ADDR, RUN) == 1);
+    assert(FIELD_EX32(addr, FICA_ADDR, LARGE) == 0);
+    uint32_t node = FIELD_EX32(addr, FICA_ADDR, NODE);
+    uint32_t func = FIELD_EX32(addr, FICA_ADDR, FUNC);
+    uint32_t reg = FIELD_EX32(addr, FICA_ADDR, REG) << 2;
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented read  "
+                  "(addr [%02x:%01x:%03x])\n",
+                  __func__, node, func, reg);
+    return 0;
+}
+
+static void fica_write(AmdDfState *s, hwaddr addr, uint32_t data)
+{
+    assert(FIELD_EX32(addr, FICA_ADDR, RUN) == 1);
+    assert(FIELD_EX32(addr, FICA_ADDR, LARGE) == 0);
+    uint32_t node = FIELD_EX32(addr, FICA_ADDR, NODE);
+    uint32_t func = FIELD_EX32(addr, FICA_ADDR, FUNC);
+    uint32_t reg = FIELD_EX32(addr, FICA_ADDR, REG) << 2;
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented write "
+                  "(addr [%02x:%01x:%03x], value 0x%x)\n",
+                  __func__, node, func, reg, data);
+}
+
+
 static uint32_t amd_df_f4_read(AmdDfState *s, hwaddr offset)
 {
+    switch(offset) {
+    case A_FICA_DATA0:
+        return fica_read(s, s->fica_addr);
+    }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(offset 0x%lx)\n",
                   __func__, offset);
@@ -110,6 +152,14 @@ static uint32_t amd_df_f4_read(AmdDfState *s, hwaddr offset)
 
 static void amd_df_f4_write(AmdDfState *s, hwaddr offset, uint32_t data)
 {
+    switch(offset) {
+    case A_FICA_ADDR:
+        s->fica_addr = data;
+        return;
+    case A_FICA_DATA0:
+        fica_write(s, s->fica_addr, data);
+        return;
+    }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%x)\n",
                   __func__, offset, data);
