@@ -29,6 +29,7 @@
 #include "hw/isa/fch-lpc.h"
 #include "hw/pci-host/zen-pci-root.h"
 #include "hw/mem/psp-umc.h"
+#include "hw/misc/amd-df.h"
 
 /* #define BOOT_SECURED_OS */
 
@@ -45,6 +46,7 @@ struct PspMachineState {
     PspSmuState smu;
     PspUmcState umc0;
     PspUmcState umc1;
+    AmdDfState df;
     MemoryRegion smn_region;
     MemoryRegion x86_full_region;
     MemoryRegion x86_region_fffd;
@@ -100,15 +102,6 @@ static DeviceState *create_pcie_root(PspMachineState *pms)
 
 static void create_smn_dirt(PspMachineState *pms)
 {
-    /* PCI devices in SMN space */
-    create_unimplemented_device_custom("D18F0x", &pms->smn_region, 0x1c000, 0x400, false);
-    create_unimplemented_device_custom("D18F1x", &pms->smn_region, 0x1c400, 0x400, false);
-    create_unimplemented_device_custom("D18F2x", &pms->smn_region, 0x1c800, 0x400, false);
-    create_unimplemented_device_custom("D18F3x", &pms->smn_region, 0x1cc00, 0x400, false);
-    create_unimplemented_device_custom("D18F4x", &pms->smn_region, 0x1d000, 0x400, false);
-    create_unimplemented_device_custom("D18F5x", &pms->smn_region, 0x1d400, 0x400, false);
-    create_unimplemented_device_custom("D18F6x", &pms->smn_region, 0x1d800, 0x400, false);
-
     /* ??? */
     stub_create("stub",         &pms->smn_region,   0x0005a86c, 4, 0x00810f00);
     /* bitmap of cores present */
@@ -239,6 +232,15 @@ static void psp_machine_init(MachineState *machine)
     }
     memory_region_add_subregion(&pms->smn_region, 0x150000,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->umc1), 0));
+
+    /* PCI Data Fabric */
+    object_initialize_child(OBJECT(machine), "amd-df", &pms->df, TYPE_AMD_DF);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&pms->df), &error_fatal)) {
+        return;
+    }
+    memory_region_add_subregion(&pms->smn_region, 0x1c000,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->df), 0));
+
 
     /* PCI host bridge */
     PCIHostState *phb = PCI_HOST_BRIDGE(create_pcie_root(pms));
