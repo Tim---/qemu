@@ -47,7 +47,7 @@ static void write_config(void)
     PspBootRomServices_t infos = {
         .PhysDieId = 0,
         .SocketId = 0,
-        .PackageType = 0,
+        .PackageType = 1, // must be 1 or 2
         .SystemSocketCount = 1,
         .unknown0 = 0,
         .DiesPerSocket = 1,
