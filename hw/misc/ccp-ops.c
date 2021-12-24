@@ -654,6 +654,7 @@ static void ccp_sha512_read_ctx(union sha_ctx *ctx, uint8_t *data, uint64_t coun
     memcpy(ctx->sha512_ctx.state, data, SHA512_DIGEST_SIZE);
     reverse_u64(ctx->sha512_ctx.state, _SHA512_DIGEST_LENGTH);
     ctx->sha512_ctx.count_low = count / SHA512_BLOCK_SIZE;
+    ctx->sha512_ctx.count_high = 0;
     ctx->sha512_ctx.index = 0;
 }
 
