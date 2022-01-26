@@ -31,6 +31,7 @@
 #include "hw/misc/amd-df.h"
 #include "hw/qdev-properties.h"
 #include "hw/ssi/ssi.h"
+#include "hw/arm/smn-misc.h"
 #include "elf.h"
 
 #define TYPE_PSP_MACHINE MACHINE_TYPE_NAME("psp")
@@ -46,6 +47,7 @@ struct PspMachineState {
     PspSmuState smu;
     PspUmcState umc0;
     PspUmcState umc1;
+    SmnMiscState smn_misc;
     AmdDfState df;
     MemoryRegion smn_region;
     MemoryRegion x86_full_region;
@@ -64,15 +66,6 @@ static MemoryRegion *create_ram(const char *name, MemoryRegion *mem,
 {
     MemoryRegion *region = g_new0(MemoryRegion, 1);
     memory_region_init_ram(region, NULL, name, size, &error_fatal);
-    memory_region_add_subregion(mem, addr, region);
-    return region;
-}
-
-static MemoryRegion *create_rom(const char *name, MemoryRegion *mem,
-                                hwaddr addr, uint64_t size)
-{
-    MemoryRegion *region = g_new0(MemoryRegion, 1);
-    memory_region_init_rom(region, NULL, name, size, &error_fatal);
     memory_region_add_subregion(mem, addr, region);
     return region;
 }
@@ -100,24 +93,6 @@ static DeviceState *create_pcie_root(PspMachineState *pms)
     return dev;
 }
 
-static void create_smn_dirt(PspMachineState *pms)
-{
-    /* ??? */
-    stub_create("stub",         &pms->smn_region,   0x0005a86c, 4, 0x00810f00);
-    /* bitmap of cores present */
-    stub_create("cores-bitmap", &pms->smn_region,   0x0005a870, 4, 0x00000001);
-
-    /* some fuses */
-    create_rom("fuses",         &pms->smn_region,   0x0005d000, 0x200);
-
-    /* 0x03000000 -> 0x04000000 looks full of SMU */
-    create_ram("smu-ram",       &pms->smn_region,   0x03c00000, 0x00040000);
-    /* MP2_RSMU_FUSESTRAPS */
-    stub_create("fusestraps",   &pms->smn_region,   0x03e10024, 4, 1);
-    create_ram("smn-more-apob", &pms->smn_region,   0x03f40000, 0x00020000);
-    create_ram("mp2-sram",      &pms->smn_region,   0x03f50000, 0x00000800);
-}
-
 static void create_x86_dirt(PspMachineState *pms)
 {
     /* Well, maybe it's just... RAM ? */
@@ -130,7 +105,6 @@ static void create_x86_dirt(PspMachineState *pms)
 
 static void create_dirt(PspMachineState *pms)
 {
-    create_smn_dirt(pms);
     create_x86_dirt(pms);
 }
 
@@ -170,8 +144,14 @@ static void psp_machine_init(MachineState *machine)
     /* SMN region */
     memory_region_init(&pms->smn_region, OBJECT(pms),
                        "smn-region", 0x100000000);
-    create_unimplemented_device_custom("smn-unimpl", &pms->smn_region,
-                                       0, 0x100000000, true);
+
+    /* SMN misc registers */
+    object_initialize_child(OBJECT(machine), "smn-misc", &pms->smn_misc, TYPE_SMN_MISC);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&pms->smn_misc), &error_fatal)) {
+        return;
+    }
+    memory_region_add_subregion_overlap(&pms->smn_region, 0,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->smn_misc), 0), -1000);
 
     /* X86 regions ! */
     memory_region_init(&pms->x86_full_region, OBJECT(pms),
