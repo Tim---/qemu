@@ -31,6 +31,7 @@
 #include "hw/mem/psp-umc.h"
 #include "hw/misc/amd-df.h"
 #include "hw/qdev-properties.h"
+#include "hw/ssi/ssi.h"
 
 /* #define BOOT_SECURED_OS */
 
@@ -138,6 +139,24 @@ static void create_dirt(PspMachineState *pms)
 #endif
 }
 
+static void fch_spi_create_flash(PspMachineState *pms, Error **errp)
+{
+    qemu_irq cs_line;
+    DeviceState *dev;
+
+    DriveInfo *dinfo = drive_get_next(IF_MTD);
+    assert(dinfo);
+    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
+    assert(blk);
+
+    dev = qdev_new("mx25l12805d");
+    qdev_prop_set_drive(dev, "drive", blk);
+    qdev_realize_and_unref(dev, qdev_get_child_bus(DEVICE(&pms->fch_spi), "spi"), errp);
+
+    cs_line = qdev_get_gpio_in_named(dev, SSI_GPIO_CS, 0);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&pms->fch_spi), 0, cs_line);
+}
+
 static void psp_machine_init(MachineState *machine)
 {
     PspMachineState *pms = PSP_MACHINE(machine);
@@ -199,13 +218,7 @@ static void psp_machine_init(MachineState *machine)
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->fch_acpi), 1));
 
     /* FCH SPI */
-    DriveInfo *dinfo = drive_get_next(IF_MTD);
-    assert(dinfo);
-    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
-    assert(blk);
-
     object_initialize_child(OBJECT(machine), "fch-spi", &pms->fch_spi, TYPE_FCH_SPI);
-    qdev_prop_set_drive(DEVICE(&pms->fch_spi), "drive", blk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&pms->fch_spi), &error_fatal)) {
         return;
     }
@@ -213,6 +226,8 @@ static void psp_machine_init(MachineState *machine)
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->fch_spi), 0));
     memory_region_add_subregion(&pms->smn_region, 0x0a000000,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->fch_spi), 1));
+
+    fch_spi_create_flash(pms, &error_fatal);
 
     /* SMU io */
     object_initialize_child(OBJECT(machine), "smu", &pms->smu, TYPE_PSP_SMU);

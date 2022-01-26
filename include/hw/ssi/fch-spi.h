@@ -17,6 +17,18 @@ struct FchSpiState {
     MemoryRegion regs_region;
     MemoryRegion direct_access;
     BlockBackend *blk;
+
+    SSIBus *spi;
+
+    uint32_t cntrl0;
+    uint32_t cntrl1;
+
+    uint8_t ext_idx;
+    uint8_t write_count;
+    uint8_t read_count;
+    uint8_t fifo[8];
+
+    qemu_irq cs0;
 };
 
 

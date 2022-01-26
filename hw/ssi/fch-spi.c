@@ -26,6 +26,8 @@
 #include "qemu/qemu-print.h"
 #include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
+#include "hw/ssi/ssi.h"
+#include "hw/irq.h"
 
 #include "hw/ssi/fch-spi.h"
 
@@ -49,32 +51,106 @@ REG32(SPI_CNTRL1,       0x0C)
     FIELD(SPI_CNTRL1, BYTE_COMMAND,             24, 8)
 REG8(SPI_EXT_REG_INDX,  0x1E)
 REG8(SPI_EXT_REG_DATA,  0x1F)
+REG8(SPI100_ENABLE,     0x20)
+
+enum {
+    EXT_TX_BYTE_COUNT = 0x05,
+    EXT_RX_BYTE_COUNT = 0x06,
+};
+
+static void fch_spi_ext_write(FchSpiState *s, uint8_t value)
+{
+    switch(s->ext_idx) {
+    case EXT_TX_BYTE_COUNT:
+        s->write_count = value;
+        break;
+    case EXT_RX_BYTE_COUNT:
+        s->read_count = value;
+        break;
+    }
+}
+
+static void fch_spi_execute(FchSpiState *s)
+{
+    assert(FIELD_EX32(s->cntrl0, SPI_CNTRL0, SPI_ARB_ENABLE) == 0);
+    assert(FIELD_EX32(s->cntrl0, SPI_CNTRL0, ILLEGAL_ACCESS) == 0);
+    assert(FIELD_EX32(s->cntrl0, SPI_CNTRL0, SPI_ACCESS_MAC_ROM_EN) == 0);
+    assert(FIELD_EX32(s->cntrl0, SPI_CNTRL0, SPI_HOST_ACCESS_ROM_EN) == 0);
+    assert(FIELD_EX32(s->cntrl0, SPI_CNTRL0, SPI_CLK_GATE) == 0);
+    assert(FIELD_EX32(s->cntrl0, SPI_CNTRL0, SPI_BUSY) == 0);
+
+    // Clear the fifo pointer
+    if(FIELD_EX32(s->cntrl0, SPI_CNTRL0, FIFO_PTR_CLR) == 1) {
+        s->cntrl1 = FIELD_DP32(s->cntrl1, SPI_CNTRL1, FIFO_PTR, 0);
+        s->cntrl0 = FIELD_DP32(s->cntrl0, SPI_CNTRL0, FIFO_PTR_CLR, 0);
+    }
+
+    // Execute opcode
+    if(FIELD_EX32(s->cntrl0, SPI_CNTRL0, EXECUTE_OPCODE) == 1) {
+
+        uint8_t op = FIELD_EX32(s->cntrl0, SPI_CNTRL0, SPI_OPCODE);
+
+        qemu_irq_lower(s->cs0);
+
+        ssi_transfer(s->spi, op);
+
+        int fifo_ptr = FIELD_EX32(s->cntrl1, SPI_CNTRL1, FIFO_PTR);
+
+        for(int i = 0; i < s->write_count; i++) {
+            ssi_transfer(s->spi, s->fifo[fifo_ptr]);
+            fifo_ptr = (fifo_ptr + 1) % 8;
+        }
+
+        s->cntrl1 = FIELD_DP32(s->cntrl1, SPI_CNTRL1, FIFO_PTR, fifo_ptr);
+
+        for(int i = 0; i < s->read_count; i++) {
+            s->fifo[fifo_ptr] = ssi_transfer(s->spi, 0);
+            fifo_ptr = (fifo_ptr + 1) % 8;
+        }
+
+        qemu_irq_raise(s->cs0);
+
+        s->cntrl0 = FIELD_DP32(s->cntrl0, SPI_CNTRL0, EXECUTE_OPCODE, 0);
+    }
+}
 
 static uint64_t fch_spi_read(void *opaque, hwaddr offset, unsigned size)
 {
-    int res = 0;
+    FchSpiState *s = FCH_SPI(opaque);
 
     switch (offset) {
     case A_SPI_CNTRL0:
-        break;
-    case A_SPI_CNTRL1:
-        res = 0x18;
+        return s->cntrl0;
+    case A_SPI_CNTRL1: ;
+        int fifo_ptr = FIELD_EX32(s->cntrl1, SPI_CNTRL1, FIFO_PTR);
+        s->cntrl1 = FIELD_DP32(s->cntrl1, SPI_CNTRL1, SPI_PARAMETERS, s->fifo[fifo_ptr]);
+        fifo_ptr = (fifo_ptr + 1) % 8;
+        s->cntrl1 = FIELD_DP32(s->cntrl1, SPI_CNTRL1, FIFO_PTR, fifo_ptr);
+        return s->cntrl1;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(offset 0x%lx)\n",
                   __func__, offset);
 
-    return res;
+    return 0;
 }
 
 static void fch_spi_write(void *opaque, hwaddr offset,
                           uint64_t data, unsigned size)
 {
+    FchSpiState *s = FCH_SPI(opaque);
+
     switch (offset) {
-    case A_SPI_EXT_REG_INDX:
-    case A_SPI_EXT_REG_DATA:
     case A_SPI_CNTRL0:
+        s->cntrl0 = data;
+        fch_spi_execute(s);
         break;
+    case A_SPI_EXT_REG_INDX:
+        s->ext_idx = data;
+        return;
+    case A_SPI_EXT_REG_DATA:
+        fch_spi_ext_write(s, data);
+        return;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
@@ -92,13 +168,20 @@ static uint64_t fch_spi_da_read(void *opaque, hwaddr offset, unsigned size)
 {
     FchSpiState *s = FCH_SPI(opaque);
 
-    uint64_t res = 0;
-    uint8_t array[8];
-    blk_pread(s->blk, offset, &array, sizeof(array));
+    qemu_irq_lower(s->cs0);
 
-    for (int i = 0; i < size; i++) {
-        res = deposit64(res, 8 * i, 8, array[i]);
+    ssi_transfer(s->spi, 0x03);
+    ssi_transfer(s->spi, extract32(offset, 16, 8));
+    ssi_transfer(s->spi, extract32(offset,  8, 8));
+    ssi_transfer(s->spi, extract32(offset,  0, 8));
+
+    uint64_t res = 0;
+    
+    for(int i = 0; i < size; i++) {
+        res = deposit64(res, 8 * i, 8, ssi_transfer(s->spi, 0));
     }
+
+    qemu_irq_raise(s->cs0);
 
     return res;
 }
@@ -129,16 +212,15 @@ static void fch_spi_init(Object *obj)
     memory_region_init_io(&s->direct_access, OBJECT(s), &fch_spi_da_ops, s,
                           "fch-spi-direct-access", 0x01000000);
     sysbus_init_mmio(sbd, &s->direct_access);
+
+    sysbus_init_irq(sbd, &s->cs0);
+
+    s->spi = ssi_create_bus(DEVICE(s), "spi");
 }
 
 static void fch_spi_realize(DeviceState *dev, Error **errp)
 {
 }
-
-static Property fch_spi_properties[] = {
-    DEFINE_PROP_DRIVE("drive", FchSpiState, blk),
-    DEFINE_PROP_END_OF_LIST(),
-};
 
 static void fch_spi_class_init(ObjectClass *oc, void *data)
 {
@@ -146,7 +228,6 @@ static void fch_spi_class_init(ObjectClass *oc, void *data)
 
     dc->realize = fch_spi_realize;
     dc->desc = "AMD FCH SPI";
-    device_class_set_props(dc, fch_spi_properties);
 }
 
 static const TypeInfo fch_spi_type_info = {
