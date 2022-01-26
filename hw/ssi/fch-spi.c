@@ -24,6 +24,8 @@
 #include "hw/char/serial.h"
 #include "sysemu/sysemu.h"
 #include "qemu/qemu-print.h"
+#include "hw/qdev-properties-system.h"
+#include "sysemu/block-backend.h"
 
 #include "hw/ssi/fch-spi.h"
 
@@ -79,7 +81,6 @@ static void fch_spi_write(void *opaque, hwaddr offset,
                   __func__, offset, data);
 }
 
-
 const MemoryRegionOps fch_spi_ops = {
     .read = fch_spi_read,
     .write = fch_spi_write,
@@ -87,6 +88,34 @@ const MemoryRegionOps fch_spi_ops = {
     .valid.max_access_size = 8,
 };
 
+static uint64_t fch_spi_da_read(void *opaque, hwaddr offset, unsigned size)
+{
+    FchSpiState *s = FCH_SPI(opaque);
+
+    uint64_t res = 0;
+    uint8_t array[8];
+    blk_pread(s->blk, offset, &array, sizeof(array));
+
+    for (int i = 0; i < size; i++) {
+        res = deposit64(res, 8 * i, 8, array[i]);
+    }
+
+    return res;
+}
+
+static void fch_spi_da_write(void *opaque, hwaddr offset,
+                          uint64_t data, unsigned size)
+{
+    g_assert_not_reached();
+}
+
+const MemoryRegionOps fch_spi_da_ops = {
+    .read = fch_spi_da_read,
+    .write = fch_spi_da_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
+    .valid.unaligned = true,
+};
 
 static void fch_spi_init(Object *obj)
 {
@@ -96,11 +125,20 @@ static void fch_spi_init(Object *obj)
     memory_region_init_io(&s->regs_region, OBJECT(s), &fch_spi_ops, s,
                           "fch-spi", 0x80);
     sysbus_init_mmio(sbd, &s->regs_region);
+
+    memory_region_init_io(&s->direct_access, OBJECT(s), &fch_spi_da_ops, s,
+                          "fch-spi-direct-access", 0x01000000);
+    sysbus_init_mmio(sbd, &s->direct_access);
 }
 
 static void fch_spi_realize(DeviceState *dev, Error **errp)
 {
 }
+
+static Property fch_spi_properties[] = {
+    DEFINE_PROP_DRIVE("drive", FchSpiState, blk),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void fch_spi_class_init(ObjectClass *oc, void *data)
 {
@@ -108,6 +146,7 @@ static void fch_spi_class_init(ObjectClass *oc, void *data)
 
     dc->realize = fch_spi_realize;
     dc->desc = "AMD FCH SPI";
+    device_class_set_props(dc, fch_spi_properties);
 }
 
 static const TypeInfo fch_spi_type_info = {

@@ -30,6 +30,7 @@
 #include "hw/pci-host/zen-pci-root.h"
 #include "hw/mem/psp-umc.h"
 #include "hw/misc/amd-df.h"
+#include "hw/qdev-properties.h"
 
 /* #define BOOT_SECURED_OS */
 
@@ -141,6 +142,7 @@ static void psp_machine_init(MachineState *machine)
 {
     PspMachineState *pms = PSP_MACHINE(machine);
 
+    /* SMN region */
     memory_region_init(&pms->smn_region, OBJECT(pms),
                        "smn-region", 0x100000000);
     create_unimplemented_device_custom("smn-unimpl", &pms->smn_region,
@@ -197,18 +199,20 @@ static void psp_machine_init(MachineState *machine)
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->fch_acpi), 1));
 
     /* FCH SPI */
+    DriveInfo *dinfo = drive_get_next(IF_MTD);
+    assert(dinfo);
+    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
+    assert(blk);
+
     object_initialize_child(OBJECT(machine), "fch-spi", &pms->fch_spi, TYPE_FCH_SPI);
+    qdev_prop_set_drive(DEVICE(&pms->fch_spi), "drive", blk);
     if (!sysbus_realize(SYS_BUS_DEVICE(&pms->fch_spi), &error_fatal)) {
         return;
     }
     memory_region_add_subregion(&pms->smn_region, 0x02dc4000,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->fch_spi), 0));
-
-    /* SPI ROM */
-    MemoryRegion *rom_region = create_rom("rom", &pms->smn_region,
-                                          0x0A000000, 0x01000000);
-    int res = load_image_mr(machine->firmware, rom_region);
-    assert(res == 0x01000000);
+    memory_region_add_subregion(&pms->smn_region, 0x0a000000,
+                                sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->fch_spi), 1));
 
     /* SMU io */
     object_initialize_child(OBJECT(machine), "smu", &pms->smu, TYPE_PSP_SMU);

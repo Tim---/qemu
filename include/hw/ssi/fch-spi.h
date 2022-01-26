@@ -15,6 +15,8 @@ struct FchSpiState {
 
     /*< public >*/
     MemoryRegion regs_region;
+    MemoryRegion direct_access;
+    BlockBackend *blk;
 };
 
 
