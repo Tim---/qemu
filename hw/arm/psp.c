@@ -24,7 +24,6 @@
 #include "hw/loader.h"
 #include "hw/arm/psp-soc.h"
 #include "hw/arm/psp-utils.h"
-#include "hw/arm/psp-loader.h"
 #include "hw/misc/psp-smu.h"
 #include "hw/isa/fch-lpc.h"
 #include "hw/pci-host/zen-pci-root.h"
@@ -32,8 +31,7 @@
 #include "hw/misc/amd-df.h"
 #include "hw/qdev-properties.h"
 #include "hw/ssi/ssi.h"
-
-/* #define BOOT_SECURED_OS */
+#include "elf.h"
 
 #define TYPE_PSP_MACHINE MACHINE_TYPE_NAME("psp")
 OBJECT_DECLARE_SIMPLE_TYPE(PspMachineState, PSP_MACHINE)
@@ -134,9 +132,6 @@ static void create_dirt(PspMachineState *pms)
 {
     create_smn_dirt(pms);
     create_x86_dirt(pms);
-#ifdef BOOT_SECURED_OS
-    create_ram("secured-os-ram", get_system_memory(), 0x04000000, 0x01000000);
-#endif
 }
 
 static void fch_spi_create_flash(PspMachineState *pms, Error **errp)
@@ -155,6 +150,17 @@ static void fch_spi_create_flash(PspMachineState *pms, Error **errp)
 
     cs_line = qdev_get_gpio_in_named(dev, SSI_GPIO_CS, 0);
     sysbus_connect_irq(SYS_BUS_DEVICE(&pms->fch_spi), 0, cs_line);
+}
+
+static void psp_load_bootloader(PspMachineState *pms)
+{
+    /* Load bootloader */
+    create_ram("on-chip-bootloader", get_system_memory(), 0x0f000000, 0x00010000);
+    uint64_t elf_entry = 0;
+    load_elf("pc-bios/psp/loader.elf", NULL, NULL, NULL, &elf_entry, NULL, NULL, NULL, false, EM_ARM, 1, 0);
+    cpu_set_pc(CPU(&pms->soc.cpu), elf_entry);
+    CPUARMState *env = &pms->soc.cpu.env;
+    env->regs[13] = 0x3f000;
 }
 
 static void psp_machine_init(MachineState *machine)
@@ -275,15 +281,7 @@ static void psp_machine_init(MachineState *machine)
 
     create_dirt(pms);
 
-    /* Load bootloader */
-    assert(machine->firmware);
-#ifdef BOOT_SECURED_OS
-    psp_load(machine->firmware, PSP_LOAD_SECURED_OS, 0xbc0a0000);
-    cpu_set_pc(CPU(&pms->soc.cpu), 0);
-#else
-    psp_load(machine->firmware, PSP_LOAD_BOOTLOADER, 0xbc0a0000);
-    cpu_set_pc(CPU(&pms->soc.cpu), 0x100);
-#endif
+    psp_load_bootloader(pms);
 }
 
 static void psp_machine_class_init(ObjectClass *oc, void *data)

@@ -23,13 +23,13 @@ Only the serial port:
 
 .. code-block:: shell
 
-  ./qemu-system-arm -M psp -nographic -monitor none -bios $rom_file
+  ./qemu-system-arm -M psp -nographic -monitor none -drive if=mtd,format=raw,file=$rom_file
 
 Debugging information:
 
 .. code-block:: shell
 
-  ./qemu-system-arm -M psp -d "unimp,guest_errors,trace:psp*" -nographic -monitor none -bios $rom_file
+  ./qemu-system-arm -M psp -d "unimp,guest_errors,trace:psp*" -nographic -monitor none -drive if=mtd,format=raw,file=$rom_file
 
 Basic gdbinit:
 
@@ -43,4 +43,4 @@ Basic gdbinit:
   monitor quit
   end
 
-  target remote | ./qemu-system-arm -M psp -d "unimp,guest_errors,trace:psp*" -nographic -monitor none -S -gdb stdio -serial none -bios $rom_file
+  target remote | ./qemu-system-arm -M psp -d "unimp,guest_errors,trace:psp*" -nographic -monitor none -S -gdb stdio -serial none -drive if=mtd,format=raw,file=$rom_file

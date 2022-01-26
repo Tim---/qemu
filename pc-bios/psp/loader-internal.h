@@ -109,6 +109,12 @@ typedef struct _psp_directory_entry {
     uint64_t addr; /* or a value in some cases */
 } __attribute__((packed)) psp_directory_entry;
 
+typedef struct _psp_directory {
+    psp_directory_header header;
+    psp_directory_entry entries[];
+} __attribute__((packed)) psp_directory;
+
+
 typedef struct _psp_combo_header {
     uint32_t cookie;
     uint32_t checksum;
@@ -122,6 +128,11 @@ typedef struct _psp_combo_entry {
     uint32_t id;
     uint64_t lvl2_addr;
 } __attribute__((packed)) psp_combo_entry;
+
+typedef struct _psp_combo {
+    psp_combo_header header;
+    psp_combo_entry entries[];
+} __attribute__((packed)) psp_combo;
 
 #define EMBEDDED_FW_SIGNATURE     0x55aa55aa
 #define PSP_COOKIE                 0x50535024        /* '$PSP' */
@@ -137,6 +148,11 @@ typedef struct {
     uint8_t unknown0;
     uint8_t DiesPerSocket;
 } PspBootRomServices_t;
+
+typedef struct {
+    uint8_t cores_per_ccx;
+    uint8_t number_of_ccx;
+} X86CoresInfo_t;
 
 typedef struct {
     uint8_t _1[16];
@@ -165,5 +181,21 @@ typedef struct {
     uint8_t wrapped_key[16];
     uint8_t reserved[112];
 } fw_hdr_t;
+
+
+typedef struct {
+    uint32_t x86_addr;
+    uint32_t smn_addr;
+    uint32_t size;
+} rom_info_t;
+
+typedef struct {
+    uint32_t psp_version;
+    void *directory_addr;
+    void *pubkey_addr;
+    void *core_info_addr;
+    void *rom_service_addr;
+} psp_info_t;
+
 
 #endif
