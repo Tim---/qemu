@@ -13,6 +13,7 @@ struct SmnMiscState {
 
     /*< public >*/
     MemoryRegion region;
+    MemoryRegion region1;
 };
 
 

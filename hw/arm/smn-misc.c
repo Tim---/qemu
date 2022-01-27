@@ -24,16 +24,38 @@
 #include "qapi/error.h"
 #include "hw/arm/smn-misc.h"
 
+static uint64_t smn_misc1_read(void *opaque, hwaddr offset, unsigned size)
+{
+    uint64_t res = 0;
+    qemu_log_mask(LOG_UNIMP, "%s:  unimplemented device read  "
+                  "(offset [%02lx:%03lx])\n",
+                  __func__, offset >> 12, offset & 0xfff);
+    return res;
+}
+
+static void smn_misc1_write(void *opaque, hwaddr offset,
+                           uint64_t value, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(offset [%02lx:%03lx], value 0x%lx)\n",
+                  __func__, offset >> 12, offset & 0xfff, value);
+}
+
+static const MemoryRegionOps smn_misc1_ops = {
+    .read = smn_misc1_read,
+    .write = smn_misc1_write,
+};
+
 static uint64_t smn_misc_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint64_t res = 0;
 
     switch(offset) {
-    case 0x0005a86c:
-        /* ??? */
+    case 0x5a86c:
+        /* ???. Used in conjunction to 0x5d5bc. */
         res = 0x00810f00;
         break;
-    case 0x0005a870:
+    case 0x5a870:
         /* bitmap of cores present */
         res = 1;
         break;
@@ -85,10 +107,13 @@ static void smn_misc_init(Object *obj)
 
     /* 0x03000000 -> 0x04000000 looks full of SMU */
     create_ram("smu-ram",       &s->region,   0x03c00000, 0x00040000);
-    /* MP2_RSMU_FUSESTRAPS */
-    //stub_create("fusestraps",   &s->region,   0x03e10024, 4, 1);
     create_ram("smn-more-apob", &s->region,   0x03f40000, 0x00020000);
     create_ram("mp2-sram",      &s->region,   0x03f50000, 0x00000800);
+
+    /* Looks similar to FICA in the data fabric */
+    memory_region_init_io(&s->region1, OBJECT(s), &smn_misc1_ops, s,
+                          "smn-misc1", 0x100000);
+    memory_region_add_subregion(&s->region, 0x1000000, &s->region1);
 
 }
 
