@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "loader-internal.h"
+#include "ccp.h"
 
 
 const rom_info_t rom_info = {
@@ -116,6 +117,7 @@ psp_directory *get_psp_directory(embedded_firmware *fw, uint32_t version)
     return res;
 }
 
+
 void _start()
 {
     map_spi();
@@ -141,7 +143,11 @@ void _start()
     psp_find_entry(dir, AMD_FW_PSP_BOOTLOADER, &bootloader_addr, &bootloader_size);
     fw_hdr_t *fw_hdr = bootloader_addr;
     void (*bootloader)() = (void (*)())(fw_hdr->load_addr);
-    memcpy(bootloader, fw_hdr + 1, fw_hdr->size_signed);
+    if(fw_hdr->is_encrypted)
+        decrypt_hw(fw_hdr, bootloader);
+    else
+        memcpy(bootloader, fw_hdr + 1, fw_hdr->size_signed);
+
 
     // Write config
     PspBootRomServices_t *infos = (PspBootRomServices_t *)psp_info.rom_service_addr;

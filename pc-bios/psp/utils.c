@@ -15,3 +15,14 @@ void *memcpy(void *dst, void *src, size_t n)
         n--;
     }
 }
+
+void reverse_bytes(void *buf, int len)
+{
+    uint8_t *p = buf;
+    uint8_t tmp;
+    for (int i = 0; i < len / 2; i++) {
+        tmp = p[i];
+        p[i] = p[len - i - 1];
+        p[len - i - 1] = tmp;
+    }
+}
