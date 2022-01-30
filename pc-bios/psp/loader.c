@@ -7,19 +7,36 @@
 #include "ccp.h"
 
 
-const rom_info_t rom_info = {
+const rom_info_t rom_info_0a = {
     .x86_addr = 0xff000000,
     .smn_addr = 0x0a000000,
     .size     = 0x01000000,
 };
 
-const psp_info_t psp_info = {
+const psp_info_t psp_info_0a = {
     .psp_version        = 0xbc0a0000,
     .directory_addr     = (void *)0x3f000,
     .pubkey_addr        = (void *)0x3f410,
     .core_info_addr     = (void *)0x3fa1e,
     .rom_service_addr   = (void *)0x3fa50,
 };
+
+const rom_info_t rom_info_0b = {
+    .x86_addr = 0xff000000,
+    .smn_addr = 0x44000000,
+    .size     = 0x01000000,
+};
+
+const psp_info_t psp_info_0b = {
+    .psp_version        = 0xbc0b0500,
+    .directory_addr     = (void *)0x4f000,
+    .pubkey_addr        = (void *)0x4f410,
+    .core_info_addr     = NULL,
+    .rom_service_addr   = (void *)0x4fd50,
+};
+
+const rom_info_t *rom_info;
+const psp_info_t *psp_info;
 
 #define SMN_IO_BASE         0x03220000 // Base of the SMN registers in ARM address space
 #define SMN_MAPPING_BASE    0x01000000 // Base of the mapped SMN regions in ARM address space
@@ -35,7 +52,7 @@ void map_spi()
     uint16_t *smn_slots = (uint16_t *)SMN_IO_BASE;
 
     for(int i = 0; i < 16; i++)
-        smn_slots[i] = (rom_info.smn_addr + i * SMN_MAPPING_SIZE) >> SMN_MAPPING_BITS;
+        smn_slots[i] = (rom_info->smn_addr + i * SMN_MAPPING_SIZE) >> SMN_MAPPING_BITS;
 }
 
 void unmap_spi()
@@ -53,7 +70,7 @@ void *translate_ptr(uint32_t addr)
     else if(addr >> 24 == 0)
         return (void *)(addr + SMN_MAPPING_BASE);
     else
-        return (void *)(addr - rom_info.x86_addr + SMN_MAPPING_BASE);
+        return (void *)(addr - rom_info->x86_addr + SMN_MAPPING_BASE);
 }
 
 int psp_find_entry(psp_directory *dir, amd_fw_type type, void **out_addr, uint32_t *out_size)
@@ -117,25 +134,42 @@ psp_directory *get_psp_directory(embedded_firmware *fw, uint32_t version)
     return res;
 }
 
-
-void _start()
+void die()
 {
+    while(1);
+}
+
+void _start(uint32_t version)
+{
+    switch(version) {
+    case 0xbc0a0000:
+        rom_info = &rom_info_0a;
+        psp_info = &psp_info_0a;
+        break;
+    case 0xbc0b0500:
+        rom_info = &rom_info_0b;
+        psp_info = &psp_info_0b;
+        break;
+    default:
+        die();
+    }
+
     map_spi();
 
     embedded_firmware *fw = get_embedded_firmware();
     assert(fw);
 
-    psp_directory *dir = get_psp_directory(fw, psp_info.psp_version);
+    psp_directory *dir = get_psp_directory(fw, psp_info->psp_version);
     assert(dir);
 
     // Copy the directory
-    memcpy(psp_info.directory_addr, dir, sizeof(psp_directory_header) + dir->header.num_entries * sizeof(psp_directory_entry));
+    memcpy(psp_info->directory_addr, dir, sizeof(psp_directory_header) + dir->header.num_entries * sizeof(psp_directory_entry));
 
     // Copy the pubkey
     void *pubkey_addr = NULL;
     uint32_t pubkey_size = 0;
     psp_find_entry(dir, AMD_FW_PSP_PUBKEY, &pubkey_addr, &pubkey_size);
-    memcpy(psp_info.pubkey_addr, pubkey_addr, pubkey_size);
+    memcpy(psp_info->pubkey_addr, pubkey_addr, pubkey_size);
 
     // Copy the bootloader
     void *bootloader_addr = NULL;
@@ -150,14 +184,16 @@ void _start()
 
 
     // Write config
-    PspBootRomServices_t *infos = (PspBootRomServices_t *)psp_info.rom_service_addr;
+    PspBootRomServices_t *infos = (PspBootRomServices_t *)psp_info->rom_service_addr;
     infos->SystemSocketCount = 1;
     infos->DiesPerSocket = 1;
     infos->PackageType = 1;
 
-    X86CoresInfo_t *core_infos = (X86CoresInfo_t *)psp_info.core_info_addr;
-    core_infos->cores_per_ccx = 1;
-    core_infos->number_of_ccx = 1;
+    if(psp_info->core_info_addr) {
+        X86CoresInfo_t *core_infos = (X86CoresInfo_t *)psp_info->core_info_addr;
+        core_infos->cores_per_ccx = 1;
+        core_infos->number_of_ccx = 1;
+    }
 
     unmap_spi();
     bootloader();

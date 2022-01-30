@@ -34,8 +34,17 @@
 #include "hw/arm/smn-misc.h"
 #include "elf.h"
 
-#define TYPE_PSP_MACHINE MACHINE_TYPE_NAME("psp")
-OBJECT_DECLARE_SIMPLE_TYPE(PspMachineState, PSP_MACHINE)
+#define TYPE_PSP_MACHINE "psp"
+#define TYPE_PSP_MACHINE_0A_00 MACHINE_TYPE_NAME("psp-0a-00")
+#define TYPE_PSP_MACHINE_0B_05 MACHINE_TYPE_NAME("psp-0b-05")
+
+struct PspMachineClass {
+    MachineClass parent;
+    uint32_t version;
+    uint32_t rom_addr;
+};
+
+OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
 
 struct PspMachineState {
     MachineState parent;
@@ -128,6 +137,8 @@ static void fch_spi_create_flash(PspMachineState *pms, Error **errp)
 
 static void psp_load_bootloader(PspMachineState *pms)
 {
+    PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(pms);
+
     /* Load bootloader */
     create_ram("on-chip-bootloader", get_system_memory(), 0x0f000000, 0x00010000);
     uint64_t elf_entry = 0;
@@ -135,11 +146,13 @@ static void psp_load_bootloader(PspMachineState *pms)
     cpu_set_pc(CPU(&pms->soc.cpu), elf_entry);
     CPUARMState *env = &pms->soc.cpu.env;
     env->regs[13] = 0x3f000;
+    env->regs[0] = pmc->version;
 }
 
 static void psp_machine_init(MachineState *machine)
 {
     PspMachineState *pms = PSP_MACHINE(machine);
+    PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(pms);
 
     /* SMN region */
     memory_region_init(&pms->smn_region, OBJECT(pms),
@@ -210,7 +223,7 @@ static void psp_machine_init(MachineState *machine)
     }
     memory_region_add_subregion(&pms->smn_region, 0x02dc4000,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->fch_spi), 0));
-    memory_region_add_subregion(&pms->smn_region, 0x0a000000,
+    memory_region_add_subregion(&pms->smn_region, pmc->rom_addr,
                                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->fch_spi), 1));
 
     fch_spi_create_flash(pms, &error_fatal);
@@ -270,20 +283,56 @@ static void psp_machine_class_init(ObjectClass *oc, void *data)
     mc->desc = "AMD PSP";
     mc->init = psp_machine_init;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a7");
-    mc->default_ram_size = 0x40000;
     mc->default_ram_id = "psp.ram";
+}
+
+static void psp_machine_0a_00_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
+
+    mc->desc = "AMD PSP (version 0A.00)";
+    mc->default_ram_size = 0x40000;
+    pmc->version = 0xbc0a0000;
+    pmc->rom_addr = 0x0a000000;
+}
+
+static void psp_machine_0b_05_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
+
+    mc->desc = "AMD PSP (version 0B.05)";
+    mc->default_ram_size = 0x50000;
+    pmc->version = 0xbc0b0500;
+    pmc->rom_addr = 0x44000000;
 }
 
 static const TypeInfo psp_machine_typeinfo = {
     .name       = TYPE_PSP_MACHINE,
     .parent     = TYPE_MACHINE,
+    .abstract   = true,
     .class_init = psp_machine_class_init,
+    .class_size = sizeof(PspMachineClass),
     .instance_size = sizeof(PspMachineState),
 };
+static const TypeInfo psp_0a_00_machine_typeinfo = {
+    .name       = TYPE_PSP_MACHINE_0A_00,
+    .parent     = TYPE_PSP_MACHINE,
+    .class_init = psp_machine_0a_00_class_init,
+};
+static const TypeInfo psp_0b_05_machine_typeinfo = {
+    .name       = TYPE_PSP_MACHINE_0B_05,
+    .parent     = TYPE_PSP_MACHINE,
+    .class_init = psp_machine_0b_05_class_init,
+};
+
 
 static void psp_machine_register_types(void)
 {
     type_register_static(&psp_machine_typeinfo);
+    type_register_static(&psp_0a_00_machine_typeinfo);
+    type_register_static(&psp_0b_05_machine_typeinfo);
 }
 
 type_init(psp_machine_register_types);
