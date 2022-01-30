@@ -24,7 +24,6 @@
 #include "hw/loader.h"
 #include "hw/arm/psp-soc.h"
 #include "hw/arm/psp-utils.h"
-#include "hw/misc/psp-smu.h"
 #include "hw/isa/fch-lpc.h"
 #include "hw/pci-host/zen-pci-root.h"
 #include "hw/mem/psp-umc.h"
@@ -53,7 +52,6 @@ struct PspMachineState {
     FchAcpiState fch_acpi;
     FchSpiState fch_spi;
     FchLpcState fch_lpc;
-    PspSmuState smu;
     PspUmcState umc0;
     PspUmcState umc1;
     SmnMiscState smn_misc;
@@ -228,13 +226,11 @@ static void psp_machine_init(MachineState *machine)
 
     fch_spi_create_flash(pms, &error_fatal);
 
-    /* SMU io */
-    object_initialize_child(OBJECT(machine), "smu", &pms->smu, TYPE_PSP_SMU);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&pms->smu), &error_fatal)) {
-        return;
-    }
-    memory_region_add_subregion(&pms->smn_region, 0x03b10000,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(&pms->smu), 0));
+    /* SMU io, alias to PSP public regs */
+    MemoryRegion *smu_alias = g_new(MemoryRegion, 1);
+    memory_region_init_alias(smu_alias, OBJECT(machine), "smu-alias",
+                             get_system_memory(), 0x03000000, 0x100000);
+    memory_region_add_subregion(&pms->smn_region, 0x3b00000, smu_alias);
 
     /* UMC */
     object_initialize_child(OBJECT(machine), "umc0", &pms->umc0, TYPE_PSP_UMC);

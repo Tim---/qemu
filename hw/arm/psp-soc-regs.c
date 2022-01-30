@@ -30,10 +30,12 @@
 #define MINOR(version)  (((version) >> 8) & 0xff)
 
 #if MINOR(PSP_VERSION) == 0x00
+REG32(PUB_SMU_INTERRUPT_READY, 0x28)
 REG32(PUB_SERIAL_PORT_ENABLE, 0x3C)
 REG32(PUB_BL_VERSION,         0x44)
 #define PRIV_GENERIC_REG_BASE  0xA0
 #else
+REG32(PUB_SMU_INTERRUPT_READY, 0x20)
 REG32(PUB_SERIAL_PORT_ENABLE, 0x40)
 REG32(PUB_BL_VERSION,         0x48)
 #define PRIV_GENERIC_REG_BASE  0x90
@@ -47,6 +49,13 @@ REG32(PRIV_POSTCODE,              PRIV_GENERIC_REG_BASE + 0x14 * 4)
 REG32(PUB_CLOCK0,                 0x108)
 REG32(PUB_CLOCK1,                 0x10C)
 
+REG32(PUB_SMU_MSG_DATA,           0x700)
+REG32(PUB_SMU_MSG_STATUS,         0x704)
+/* REG32(PUB_SMU_MSG_???,         0x70C) */
+/* REG32(PUB_SMU_MSG_???,         0x710) */
+REG32(PUB_SMU_MSG_CMD,            0x714)
+/* REG32(PUB_SMU_MSG_???,         0x71C) */
+
 REG32(PUB_BL_VERSION2,      0x9EC)
 
 static uint64_t psp_soc_regs_public_read(void *opaque, hwaddr offset,
@@ -59,6 +68,12 @@ static uint64_t psp_soc_regs_public_read(void *opaque, hwaddr offset,
         return s->serial_enabled;
     case A_PUB_CLOCK0:
     case A_PUB_CLOCK1:
+        return 0;
+    case A_PUB_SMU_INTERRUPT_READY:
+        return 1;
+    case A_PUB_SMU_MSG_STATUS:
+        return 1;
+    case A_PUB_SMU_MSG_DATA:
         return 0;
     case 0x4:
     case 0x104:
@@ -93,6 +108,9 @@ static void psp_soc_regs_public_write(void *opaque, hwaddr offset,
         return;
     case A_PUB_BL_VERSION2:
         return;
+    case A_PUB_SMU_MSG_DATA:
+    case A_PUB_SMU_MSG_CMD:
+        return;
     case 0x44:
     case 0x300:
     case 0x304:
@@ -110,7 +128,6 @@ static void psp_soc_regs_public_write(void *opaque, hwaddr offset,
     case 0x6ac:
     case 0x70c:
     case 0x710:
-    case 0x714:
     case 0x71c:
     case 0x984:
     case 0x994:
