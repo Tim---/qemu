@@ -29,8 +29,9 @@
 static void psp_soc_init(Object *obj)
 {
     PspSocState *pss = PSP_SOC(obj);
+    PspSocClass *psc = PSP_SOC_GET_CLASS(obj);
 
-    object_initialize_child(obj, "soc-regs", &pss->soc_regs, TYPE_PSP_SOC_REGS);
+    object_initialize_child(obj, "soc-regs", &pss->soc_regs, psc->regs_type);
     object_initialize_child(obj, "smn-bridge", &pss->smn_bridge, TYPE_SMN_BRIDGE);
     object_initialize_child(obj, "x86-bridge", &pss->x86_bridge, TYPE_X86_BRIDGE);
     object_initialize_child(obj, "ccp", &pss->ccp, TYPE_CCP);
@@ -145,17 +146,53 @@ static void psp_soc_class_init(ObjectClass *oc, void *data)
     device_class_set_props(dc, psp_soc_props);
 }
 
+static void psp_soc_0a_00_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PspSocClass *psc = PSP_SOC_CLASS(oc);
+
+    dc->desc = "PSP SoC (version 0A.00)";
+    psc->version = 0xbc0a0000;
+    psc->regs_type = TYPE_PSP_SOC_REGS_0A_00;
+}
+
+static void psp_soc_0b_05_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PspSocClass *psc = PSP_SOC_CLASS(oc);
+
+    dc->desc = "PSP SoC (version 0B.05)";
+    psc->version = 0xbc0b0500;
+    psc->regs_type = TYPE_PSP_SOC_REGS_0B_05;
+}
+
 static const TypeInfo psp_soc_type_info = {
     .name = TYPE_PSP_SOC,
     .parent = TYPE_DEVICE,
+    .abstract   = true,
     .instance_size = sizeof(PspSocState),
     .instance_init = psp_soc_init,
+    .class_size = sizeof(PspSocClass),
     .class_init = psp_soc_class_init,
+};
+
+static const TypeInfo psp_soc_0a_00_type_info = {
+    .name = TYPE_PSP_SOC_0A_00,
+    .parent = TYPE_PSP_SOC,
+    .class_init = psp_soc_0a_00_class_init,
+};
+
+static const TypeInfo psp_soc_0b_05_type_info = {
+    .name = TYPE_PSP_SOC_0B_05,
+    .parent = TYPE_PSP_SOC,
+    .class_init = psp_soc_0b_05_class_init,
 };
 
 static void psp_soc_register_types(void)
 {
     type_register_static(&psp_soc_type_info);
+    type_register_static(&psp_soc_0a_00_type_info);
+    type_register_static(&psp_soc_0b_05_type_info);
 }
 
 type_init(psp_soc_register_types)

@@ -12,7 +12,16 @@
 #include "hw/misc/ccp.h"
 
 #define TYPE_PSP_SOC "psp-soc"
-OBJECT_DECLARE_SIMPLE_TYPE(PspSocState, PSP_SOC)
+#define TYPE_PSP_SOC_0A_00 "psp-soc-0a-00"
+#define TYPE_PSP_SOC_0B_05 "psp-soc-0b-05"
+
+struct PspSocClass {
+    DeviceClass parent;
+    uint32_t version;
+    const char *regs_type;
+};
+
+OBJECT_DECLARE_TYPE(PspSocState, PspSocClass, PSP_SOC)
 
 struct PspSocState {
     /*< private >*/

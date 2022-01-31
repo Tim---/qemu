@@ -30,7 +30,7 @@
 #define MINOR(version)  (((version) >> 8) & 0xff)
 
 #if MINOR(PSP_VERSION) == 0x00
-REG32(PUB_SMU_INTERRUPT_READY, 0x28)
+REG32(PUB_SMU_INTERRUPT_READY, 0x24)
 REG32(PUB_SERIAL_PORT_ENABLE, 0x3C)
 REG32(PUB_BL_VERSION,         0x44)
 #define PRIV_GENERIC_REG_BASE  0xA0
@@ -58,11 +58,8 @@ REG32(PUB_SMU_MSG_CMD,            0x714)
 
 REG32(PUB_BL_VERSION2,      0x9EC)
 
-static uint64_t psp_soc_regs_public_read(void *opaque, hwaddr offset,
-                                         unsigned size)
+static uint32_t psp_soc_regs_0a_00_public_read(PspSocRegsState *s, hwaddr offset)
 {
-    PspSocRegsState *s = PSP_SOC_REGS(opaque);
-
     switch (offset) {
     case A_PUB_SERIAL_PORT_ENABLE:
         return s->serial_enabled;
@@ -97,11 +94,9 @@ static uint64_t psp_soc_regs_public_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void psp_soc_regs_public_write(void *opaque, hwaddr offset,
-                                      uint64_t data, unsigned size)
+static void psp_soc_regs_0a_00_public_write(PspSocRegsState *s, hwaddr offset,
+                                      uint32_t data)
 {
-    /* PspSocRegsState *s = PSP_SOC_REGS(opaque); */
-
     switch (offset) {
     case A_PUB_SERIAL_PORT_ENABLE:
         /* s->serial_enabled = (data != 0); */
@@ -141,26 +136,21 @@ static void psp_soc_regs_public_write(void *opaque, hwaddr offset,
         break;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
-                  "(offset 0x%lx, value 0x%lx)\n",
+                  "(offset 0x%lx, value 0x%x)\n",
                   __func__, offset, data);
 }
 
 
-const MemoryRegionOps psp_soc_regs_public_ops = {
-    .read = psp_soc_regs_public_read,
-    .write = psp_soc_regs_public_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .valid.unaligned = false,
-};
-
-
-static uint64_t psp_soc_regs_private_read(void *opaque, hwaddr offset,
-                                          unsigned size)
+static uint32_t psp_soc_regs_0a_00_private_read(PspSocRegsState *s, hwaddr offset)
 {
     switch (offset) {
     case A_PRIV_PSP_VERSION:
         return PSP_VERSION;
+    /*
+    TODO: version 0b
+    case 0x50:
+        return 0x00000300;
+    */
     case 0xf0:
         break;
     }
@@ -172,8 +162,8 @@ static uint64_t psp_soc_regs_private_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void psp_soc_regs_private_write(void *opaque, hwaddr offset,
-                                       uint64_t data, unsigned size)
+static void psp_soc_regs_0a_00_private_write(PspSocRegsState *s, hwaddr offset,
+                                       uint32_t data)
 {
     switch (offset) {
     case A_PRIV_POSTCODE:
@@ -185,10 +175,50 @@ static void psp_soc_regs_private_write(void *opaque, hwaddr offset,
         break;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
-                  "(offset 0x%lx, value 0x%lx)\n",
+                  "(offset 0x%lx, value 0x%x)\n",
                   __func__, offset, data);
 }
 
+
+static uint64_t psp_soc_regs_public_read(void *opaque, hwaddr offset,
+                                         unsigned size)
+{
+    PspSocRegsState *ps = PSP_SOC_REGS(opaque);
+    PspSocRegsClass *pc = PSP_SOC_REGS_GET_CLASS(ps);
+    return pc->public_read(ps, offset);
+}
+
+static void psp_soc_regs_public_write(void *opaque, hwaddr offset,
+                                      uint64_t data, unsigned size)
+{
+    PspSocRegsState *ps = PSP_SOC_REGS(opaque);
+    PspSocRegsClass *pc = PSP_SOC_REGS_GET_CLASS(ps);
+    pc->public_write(ps, offset, data);
+}
+
+static uint64_t psp_soc_regs_private_read(void *opaque, hwaddr offset,
+                                         unsigned size)
+{
+    PspSocRegsState *ps = PSP_SOC_REGS(opaque);
+    PspSocRegsClass *pc = PSP_SOC_REGS_GET_CLASS(ps);
+    return pc->private_read(ps, offset);
+}
+
+static void psp_soc_regs_private_write(void *opaque, hwaddr offset,
+                                      uint64_t data, unsigned size)
+{
+    PspSocRegsState *ps = PSP_SOC_REGS(opaque);
+    PspSocRegsClass *pc = PSP_SOC_REGS_GET_CLASS(ps);
+    pc->private_write(ps, offset, data);
+}
+
+const MemoryRegionOps psp_soc_regs_public_ops = {
+    .read = psp_soc_regs_public_read,
+    .write = psp_soc_regs_public_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .valid.unaligned = false,
+};
 
 const MemoryRegionOps psp_soc_regs_private_ops = {
     .read = psp_soc_regs_private_read,
@@ -197,7 +227,6 @@ const MemoryRegionOps psp_soc_regs_private_ops = {
     .valid.max_access_size = 4,
     .valid.unaligned = false,
 };
-
 
 static void psp_soc_regs_init(Object *obj)
 {
@@ -229,17 +258,59 @@ static void psp_soc_regs_class_init(ObjectClass *oc, void *data)
     dc->desc = "PSP SoC registers";
 }
 
+static void psp_soc_regs_0a_00_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PspSocRegsClass *pc = PSP_SOC_REGS_CLASS(oc);
+
+    dc->realize = psp_soc_regs_realize;
+    dc->desc = "PSP SoC registers (version 0A.00)";
+    pc->public_read = psp_soc_regs_0a_00_public_read;
+    pc->public_write = psp_soc_regs_0a_00_public_write;
+    pc->private_read = psp_soc_regs_0a_00_private_read;
+    pc->private_write = psp_soc_regs_0a_00_private_write;
+}
+
+static void psp_soc_regs_0b_05_class_init(ObjectClass *oc, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    PspSocRegsClass *pc = PSP_SOC_REGS_CLASS(oc);
+
+    dc->realize = psp_soc_regs_realize;
+    dc->desc = "PSP SoC registers (version 0B.05)";
+    pc->public_read = psp_soc_regs_0a_00_public_read;
+    pc->public_write = psp_soc_regs_0a_00_public_write;
+    pc->private_read = psp_soc_regs_0a_00_private_read;
+    pc->private_write = psp_soc_regs_0a_00_private_write;
+}
+
 static const TypeInfo psp_soc_regs_type_info = {
     .name = TYPE_PSP_SOC_REGS,
     .parent = TYPE_SYS_BUS_DEVICE,
+    .abstract = true,
     .instance_size = sizeof(PspSocRegsState),
     .instance_init = psp_soc_regs_init,
+    .class_size = sizeof(PspSocRegsClass),
     .class_init = psp_soc_regs_class_init,
+};
+
+static const TypeInfo psp_soc_regs_0a_00_type_info = {
+    .name = TYPE_PSP_SOC_REGS_0A_00,
+    .parent = TYPE_PSP_SOC_REGS,
+    .class_init = psp_soc_regs_0a_00_class_init,
+};
+
+static const TypeInfo psp_soc_regs_0b_05_type_info = {
+    .name = TYPE_PSP_SOC_REGS_0B_05,
+    .parent = TYPE_PSP_SOC_REGS,
+    .class_init = psp_soc_regs_0b_05_class_init,
 };
 
 static void psp_soc_regs_register_types(void)
 {
     type_register_static(&psp_soc_regs_type_info);
+    type_register_static(&psp_soc_regs_0a_00_type_info);
+    type_register_static(&psp_soc_regs_0b_05_type_info);
 }
 
 type_init(psp_soc_regs_register_types)

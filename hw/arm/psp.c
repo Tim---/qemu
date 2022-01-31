@@ -41,6 +41,7 @@ struct PspMachineClass {
     MachineClass parent;
     uint32_t version;
     uint32_t rom_addr;
+    const char *soc_type;
 };
 
 OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
@@ -192,7 +193,7 @@ static void psp_machine_init(MachineState *machine)
                                 &pms->x86_region_0000);
 
     /* PSP SOC */
-    object_initialize_child(OBJECT(machine), "soc", &pms->soc, TYPE_PSP_SOC);
+    object_initialize_child(OBJECT(machine), "soc", &pms->soc, pmc->soc_type);
     object_property_set_link(OBJECT(&pms->soc), "ram",
                              OBJECT(machine->ram), &error_abort);
     object_property_set_link(OBJECT(&pms->soc), "smn-memory",
@@ -291,6 +292,7 @@ static void psp_machine_0a_00_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 0x40000;
     pmc->version = 0xbc0a0000;
     pmc->rom_addr = 0x0a000000;
+    pmc->soc_type = TYPE_PSP_SOC_0A_00;
 }
 
 static void psp_machine_0b_05_class_init(ObjectClass *oc, void *data)
@@ -302,6 +304,7 @@ static void psp_machine_0b_05_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 0x50000;
     pmc->version = 0xbc0b0500;
     pmc->rom_addr = 0x44000000;
+    pmc->soc_type = TYPE_PSP_SOC_0B_05;
 }
 
 static const TypeInfo psp_machine_typeinfo = {

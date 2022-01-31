@@ -45,6 +45,7 @@ REG32(CONFIG_0,             0x6000)
 REG32(TRNG_CTL,             0x6008)
 REG32(ZLIB_MAX_SIZE,        0x6020)
 REG32(REG_6024,             0x6024)
+REG32(REG_6028,             0x6028)
 REG32(ZLIB_SIZE,            0x602C)
 REG32(CLK_GATE_CTL,         0x603C)
 REG32(REG_6054,             0x6054)
@@ -154,6 +155,8 @@ ccp_mmio_read_generic(CcpState *s, hwaddr addr)
         return s->clk_gate_ctl;
     case A_ZLIB_SIZE:
         return s->zlib_size;
+    case A_REG_6028:
+        return 1;
     case A_REG_6054:
         return s->reg_5064;
     }
