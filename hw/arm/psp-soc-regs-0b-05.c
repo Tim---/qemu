@@ -27,11 +27,24 @@
 REG32(PUB_SMU_INTERRUPT_READY, 0x24)
 REG32(PRIV_CRYPTO_FLAGS, 0x50)
 
+
+/* The SMU interface is the same as version 0A for now */
+REG32(PUB_SMU_MSG_DATA,           0x700)
+REG32(PUB_SMU_MSG_STATUS,         0x704)
+/* REG32(PUB_SMU_MSG_???,         0x70C) */
+/* REG32(PUB_SMU_MSG_???,         0x710) */
+REG32(PUB_SMU_MSG_CMD,            0x714)
+/* REG32(PUB_SMU_MSG_???,         0x71C) */
+
 uint32_t psp_soc_regs_0b_05_public_read(PspSocRegsState *s, hwaddr offset)
 {
     switch (offset) {
     case A_PUB_SMU_INTERRUPT_READY:
         return 1;
+    case A_PUB_SMU_MSG_STATUS:
+        return 1;
+    case A_PUB_SMU_MSG_DATA:
+        return 0;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
