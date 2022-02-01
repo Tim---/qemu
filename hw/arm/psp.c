@@ -266,8 +266,9 @@ static void psp_machine_init(MachineState *machine)
     assert(lpc);
 
     /* Is the LPC the owner of the IO space ? */
-    /* TODO: we don't get unimplemented RW */
     memory_region_add_subregion(&pms->x86_region_fffd, X86_IO_BASE, get_system_io());
+    create_unimplemented_device_custom("io-unimpl", get_system_io(),
+                                       0, 0x10000, true);
 
     create_dirt(pms);
 
