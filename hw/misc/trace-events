@@ -260,3 +260,8 @@ ccp_zlib(uint64_t src, const char *src_type, uint64_t dst, const char *dst_type,
 ccp_sha(const char *type, uint64_t src, const char *src_type, uint64_t dst, const char *dst_type, int length) "%s src=0x%"PRIx64"[%s] dst=0x%"PRIx64"[%s] length=0x%x"
 ccp_aes(const char *type, const char *mode, uint64_t src, const char *src_type, uint64_t dst, const char *dst_type, uint64_t key, const char *key_type, int length) "%s-%s src=0x%"PRIx64"[%s] dst=0x%"PRIx64"[%s] key=0x%"PRIx64"[%s] length=0x%x"
 ccp_rsa(uint64_t src, const char *src_type, uint64_t dst, const char *dst_type, uint64_t key, const char *key_type, int length) "src=0x%"PRIx64"[%s] dst=0x%"PRIx64"[%s] key=0x%"PRIx64"[%s] length=0x%x"
+
+# psp-debug.c
+psp_debug_postcode(uint32_t code) "code=%x"
+psp_debug_dead_entry(uint16_t which, uint16_t major, uint32_t minor, uint32_t data_a, uint32_t data_b) "which=0x%#04x major=0x%04x minor=0x%08x data_a=0x%08x data_b=0x%08x"
+psp_debug_str(uint32_t size, char *s) "str=\"%.*s\""

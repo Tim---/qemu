@@ -25,6 +25,7 @@
 #include "hw/pci/pci.h"
 #include "hw/arm/psp-utils.h"
 #include "hw/char/serial.h"
+#include "hw/misc/psp-debug.h"
 
 #include "hw/isa/fch-lpc.h"
 
@@ -125,6 +126,10 @@ static void fch_lpc_realize(PCIDevice *dev, Error **errp)
 
     /* Create serial ports */
     serial_hds_isa_init(lpc->isa_bus, 0, 1);
+
+    /* Debug port */
+    ISADevice *isa = isa_new(TYPE_PSP_DEBUG);
+    isa_realize_and_unref(isa, isa_bus, errp);
 }
 
 static void fch_lpc_exit(PCIDevice *dev)
