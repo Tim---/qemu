@@ -42,6 +42,7 @@ struct PspMachineClass {
     uint32_t version;
     uint32_t rom_addr;
     const char *soc_type;
+    const char *smn_misc_type;
 };
 
 OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
@@ -158,7 +159,7 @@ static void psp_machine_init(MachineState *machine)
                        "smn-region", 0x100000000);
 
     /* SMN misc registers */
-    object_initialize_child(OBJECT(machine), "smn-misc", &pms->smn_misc, TYPE_SMN_MISC);
+    object_initialize_child(OBJECT(machine), "smn-misc", &pms->smn_misc, pmc->smn_misc_type);
     if (!sysbus_realize(SYS_BUS_DEVICE(&pms->smn_misc), &error_fatal)) {
         return;
     }
@@ -294,6 +295,7 @@ static void psp_machine_0a_00_class_init(ObjectClass *oc, void *data)
     pmc->version = 0xbc0a0000;
     pmc->rom_addr = 0x0a000000;
     pmc->soc_type = TYPE_PSP_SOC_0A_00;
+    pmc->smn_misc_type = TYPE_SMN_MISC_0A_00;
 }
 
 static void psp_machine_0b_05_class_init(ObjectClass *oc, void *data)
@@ -306,6 +308,7 @@ static void psp_machine_0b_05_class_init(ObjectClass *oc, void *data)
     pmc->version = 0xbc0b0500;
     pmc->rom_addr = 0x44000000;
     pmc->soc_type = TYPE_PSP_SOC_0B_05;
+    pmc->smn_misc_type = TYPE_SMN_MISC_0B_05;
 }
 
 static const TypeInfo psp_machine_typeinfo = {

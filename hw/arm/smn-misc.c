@@ -48,12 +48,28 @@ static const MemoryRegionOps smn_misc1_ops = {
 
 static uint64_t smn_misc_read(void *opaque, hwaddr offset, unsigned size)
 {
+    SmnMiscClass *smc = SMN_MISC_GET_CLASS(opaque);
+
     uint64_t res = 0;
 
     switch(offset) {
+    case 0x5a08c:
+        /*
+        Used in version 0B.
+        Memory channel "shuffling".
+        Bits 2-4 encode the number of dimms ?
+        2   -> 2 "dimms"
+        4   -> 8 "dimms"
+        7   -> 4 "dimms"
+        */
+        return 2 << 2;
     case 0x5a86c:
-        /* ???. Used in conjunction to 0x5d5bc. */
-        res = 0x00810f00;
+        /*
+        This is CPUID Fn0000_0001_EAX
+        Used in conjunction to 0x5d5bc on version 0A.
+        Used in conjunction to 0x5d480 on version 0B.
+        */
+        res = smc->cpuid;
         break;
     case 0x5a870:
         /* bitmap of cores present */
@@ -129,17 +145,45 @@ static void smn_misc_class_init(ObjectClass *oc, void *data)
     dc->desc = "PSP SMN misc";
 }
 
+static void smn_misc_class_0a_00_init(ObjectClass *oc, void *data)
+{
+    SmnMiscClass *smc = SMN_MISC_CLASS(oc);
+    smc->cpuid = 0x00810f00;
+}
+
+static void smn_misc_class_0b_05_init(ObjectClass *oc, void *data)
+{
+    SmnMiscClass *smc = SMN_MISC_CLASS(oc);
+    smc->cpuid = 0x00870f00;
+}
+
 static const TypeInfo smn_misc_type_info = {
     .name = TYPE_SMN_MISC,
     .parent = TYPE_SYS_BUS_DEVICE,
+    .abstract = true,
     .instance_size = sizeof(SmnMiscState),
     .instance_init = smn_misc_init,
+    .class_size = sizeof(SmnMiscClass),
     .class_init = smn_misc_class_init,
+};
+
+static const TypeInfo smn_misc_0a_00_type_info = {
+    .name = TYPE_SMN_MISC_0A_00,
+    .parent = TYPE_SMN_MISC,
+    .class_init = smn_misc_class_0a_00_init,
+};
+
+static const TypeInfo smn_misc_0b_05_type_info = {
+    .name = TYPE_SMN_MISC_0B_05,
+    .parent = TYPE_SMN_MISC,
+    .class_init = smn_misc_class_0b_05_init,
 };
 
 static void smn_misc_register_types(void)
 {
     type_register_static(&smn_misc_type_info);
+    type_register_static(&smn_misc_0a_00_type_info);
+    type_register_static(&smn_misc_0b_05_type_info);
 }
 
 type_init(smn_misc_register_types)
