@@ -72,6 +72,12 @@ REG32(IOMUX_SPKR_AGPIO91,   0x5b)
 #define GPIO1_BASE   0x1600
 #define GPIO1_SIZE   0x0100
 
+REG32(GPIO,     0x00)
+    FIELD(GPIO,     PIN_STS,    16, 1)
+
+#define A_GPIO1_SCL0_I2C2_SCL_EGPIO113   0xC4
+#define A_GPIO1_SDA0_I2C2_SDA_EGPIO114   0xC8
+
 #define AOAC_BASE   0x1e00
 #define AOAC_SIZE   0x0100
 
@@ -239,6 +245,17 @@ const MemoryRegionOps fch_acpi_misc_ops = {
 
 static uint64_t fch_acpi_gpio1_read(void *opaque, hwaddr offset, unsigned size)
 {
+    switch(offset) {
+    case A_GPIO1_SCL0_I2C2_SCL_EGPIO113:
+    case A_GPIO1_SDA0_I2C2_SDA_EGPIO114:
+        /*
+        These pins are used for SMBUS.
+        The ABL will read the pin values to see if there is "stall" transactions.
+        If so, it will bit-bang the pins.
+        We set the pin values to 1 (idle).
+        */
+        return FIELD_DP32(0, GPIO, PIN_STS, 1);
+    }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n",
                 __func__, offset);
