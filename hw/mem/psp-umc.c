@@ -32,11 +32,51 @@
 REG32(EMU_TYPE,         0x1050)
 REG32(CTRL_FLAGS,       0x01ec)
 
+/* BFDctAddlOffsetReg */
+REG32(CTRL_INDIRECT_ADDR,         0x1800)
+/* BFDctAddlDataReg */
+REG32(CTRL_INDIRECT_DATA,         0x1804)
+/* BFDctAddlDataReg */
+REG32(CTRL_INDIRECT_STATUS,       0x1808)
+
+
+/*
+Special control registers:
+0x1800: BFDctAddlOffsetReg
+0x1804: BFDctAddlDataReg
+
+We first write (possibly several ?) data to BFDctAddlDataReg
+Then write the (indirect address | DCT_ACCESS_WRITE) in OffsetReg
+
+DCT_ACCESS_WRITE = 0x80000000
+*/
+
 typedef enum {
     EMU_SIMULATION = 0xb1aab1aa,
     EMU_EMULATION1 = 0x4e554e55,
     EMU_EMULATION2 = 0x51e051e0,
 } emu_type_e;
+
+
+/*
+These function control direct R/W access to the "PHY"
+*/
+static uint32_t psp_umc_indirect_read(uint32_t addr)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
+                "(offset 0x%x)\n",
+                __func__, addr);
+
+    return 0;
+}
+
+static void psp_umc_indirect_write(uint32_t addr, uint32_t data)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(offset 0x%x, value 0x%x)\n",
+                  __func__, addr, data);
+    return;
+}
 
 static uint64_t psp_umc_ch_read(PspUmcState *s, hwaddr offset)
 {
@@ -101,9 +141,11 @@ static uint64_t psp_umc_ctrl_read(PspUmcState *s, hwaddr offset)
     case 0x11b8:
     case 0x11bc:
     case 0x11e4:
-    case 0x1804:
-    case 0x1808:
         break;
+    case A_CTRL_INDIRECT_DATA:
+        return s->indirect_data;
+    case A_CTRL_INDIRECT_STATUS:
+        return 1; /* Ready */
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
@@ -175,9 +217,18 @@ static void psp_umc_ctrl_write(PspUmcState *s, hwaddr offset, uint64_t data)
     case 0x11b8:
     case 0x11bc:
     case 0x11e4:
-    case 0x1800:
-    case 0x1804:
         break;
+    case A_CTRL_INDIRECT_ADDR:
+        s->indirect_addr = data & 0x7fffffff;
+        if(data & 0x80000000) {
+            psp_umc_indirect_write(s->indirect_addr, s->indirect_data);
+        } else {
+            s->indirect_data = psp_umc_indirect_read(s->indirect_addr);
+        }
+        return;
+    case A_CTRL_INDIRECT_DATA:
+        s->indirect_data = data;
+        return;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "

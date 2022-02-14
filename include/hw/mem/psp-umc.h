@@ -14,6 +14,8 @@ struct PspUmcState {
 
     /*< public >*/
     MemoryRegion regs_region;
+    uint32_t indirect_addr;
+    uint32_t indirect_data;
 };
 
 
