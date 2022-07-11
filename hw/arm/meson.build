@@ -77,5 +77,6 @@ system_ss.add(when: 'CONFIG_TOSA', if_true: files('tosa.c'))
 system_ss.add(when: 'CONFIG_VERSATILE', if_true: files('versatilepb.c'))
 system_ss.add(when: 'CONFIG_VEXPRESS', if_true: files('vexpress.c'))
 system_ss.add(when: 'CONFIG_Z2', if_true: files('z2.c'))
+arm_ss.add(when: 'CONFIG_PSP', if_true: files('psp.c'))
 
 hw_arch += {'arm': arm_ss}
