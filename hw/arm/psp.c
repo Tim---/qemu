@@ -9,6 +9,8 @@
 #include "hw/zen/psp-regs.h"
 #include "hw/zen/zen-cpuid.h"
 #include "hw/zen/psp-ocbl.h"
+#include "hw/zen/psp-smn-bridge.h"
+#include "hw/zen/zen-utils.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -19,13 +21,17 @@ struct PspMachineClass {
 
 struct PspMachineState {
     MachineState parent;
+
+    MemoryRegion smn_region;
 };
 
 OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
 
 static void psp_machine_init(MachineState *machine)
 {
+    PspMachineState *s = PSP_MACHINE(machine);
     PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(machine);
+    DeviceState *dev;
 
     // Create CPU
     Object *cpuobj;
@@ -49,11 +55,27 @@ static void psp_machine_init(MachineState *machine)
     create_unimplemented_device("smn-regs",      0x03220000, 0x10000);
     create_unimplemented_device("x86-regs",      0x03230000, 0x10000);
 
-    DeviceState *dev = qdev_new(TYPE_PSP_REGS);
+    /* Create PSP registers */
+    dev = qdev_new(TYPE_PSP_REGS);
     qdev_prop_set_uint32(dev, "codename", pmc->codename);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03010000);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x03200000);
+
+    /* Create SMN bridge */
+    memory_region_init(&s->smn_region, OBJECT(s),
+                       "smn-region", 0x1000000000UL);
+
+    dev = qdev_new(TYPE_SMN_BRIDGE);
+    object_property_set_link(OBJECT(dev), "source-memory",
+                             OBJECT(&s->smn_region), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03220000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x01000000);
+
+    create_unimplemented_device_generic(&s->smn_region, "smn-unimp", 0,
+                                        0x1000000000UL);
+
 }
 
 static void psp_machine_class_init(ObjectClass *oc, void *data)
