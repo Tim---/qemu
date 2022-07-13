@@ -14,6 +14,7 @@
 #include "hw/zen/psp-dirty.h"
 #include "hw/zen/psp-timer.h"
 #include "hw/zen/ccp.h"
+#include "hw/zen/psp-ht-bridge.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -26,6 +27,7 @@ struct PspMachineState {
     MachineState parent;
 
     MemoryRegion smn_region;
+    MemoryRegion ht_region;
 };
 
 OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
@@ -70,6 +72,23 @@ static void create_smn(PspMachineState *s)
                                         0x1000000000UL);
 }
 
+static void create_ht(PspMachineState *s)
+{
+    /* Create Hypertransport bridge */
+    memory_region_init(&s->ht_region, OBJECT(s),
+                       "ht-region", 0x1000000000000ULL);
+
+    DeviceState *dev = qdev_new(TYPE_HT_BRIDGE);
+    object_property_set_link(OBJECT(dev), "source-memory",
+                             OBJECT(&s->ht_region), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03230000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x04000000);
+
+    create_unimplemented_device_generic(&s->ht_region, "ht-unimp", 0,
+                                        0x1000000000000ULL);
+}
+
 static void create_timer(int i)
 {
     DeviceState *dev = qdev_new(TYPE_PSP_TIMER);
@@ -79,7 +98,6 @@ static void create_timer(int i)
 
 static void create_unimplemented(void)
 {
-    create_unimplemented_device("x86-regs",      0x03230000, 0x10000);
 }
 
 static void run_bootloader(zen_codename codename)
@@ -113,6 +131,7 @@ static void psp_machine_init(MachineState *machine)
     create_unimplemented();
     create_psp_regs(pmc->codename);
     create_smn(s);
+    create_ht(s);
     create_ccp(pmc->codename);
 
     for(int i = 0; i < 2; i++) {
