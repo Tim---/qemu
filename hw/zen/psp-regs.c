@@ -267,7 +267,7 @@ static void psp_regs_realize(DeviceState *dev, Error **errp)
     PspRegsState *s = PSP_REGS(dev);
 
     s->reg_locs = get_locs(s->codename);
-    s->bootrom_revid = zen_get_bootrom_revid(CODENAME_SUMMIT_RIDGE); // TODO !
+    s->bootrom_revid = zen_get_bootrom_revid(s->codename);
 }
 
 static Property psp_regs_props[] = {
