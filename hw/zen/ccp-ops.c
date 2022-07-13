@@ -499,7 +499,7 @@ int ccp_op_passthru(CcpState *s, struct ccp5_desc * desc)
     /* Flags */
     NOASSERT(desc->dw0.init);
     assert(desc->dw0.eom == 1);
-    assert(desc->dw0.prot == 0);
+    NOASSERT(desc->dw0.prot);
 
     /* Engine / function */
     assert(desc->dw0.engine == CCP_ENGINE_PASSTHRU);
