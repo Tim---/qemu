@@ -12,6 +12,7 @@
 #include "hw/zen/psp-smn-bridge.h"
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/psp-dirty.h"
+#include "hw/zen/psp-timer.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -76,6 +77,13 @@ static void psp_machine_init(MachineState *machine)
 
     create_unimplemented_device_generic(&s->smn_region, "smn-unimp", 0,
                                         0x1000000000UL);
+
+    /* Create timers */
+    for(int i = 0; i < 2; i++) {
+        dev = qdev_new(TYPE_PSP_TIMER);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03010400 + i * 0x24);
+    }
 
     /* Dirty */
     psp_create_config(pmc->codename);
