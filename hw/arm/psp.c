@@ -92,11 +92,12 @@ static void run_bootloader(zen_codename codename)
     psp_on_chip_bootloader(blk, codename);
 }
 
-static void create_ccp(void)
+static void create_ccp(zen_codename codename)
 {
     DeviceState *dev = qdev_new(TYPE_CCP);
     object_property_set_link(OBJECT(dev), "system-memory",
                              OBJECT(get_system_memory()), &error_fatal);
+    qdev_prop_set_uint32(dev, "num-queues", zen_get_num_ccp_queues(codename));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03000000);
 }
@@ -112,7 +113,7 @@ static void psp_machine_init(MachineState *machine)
     create_unimplemented();
     create_psp_regs(pmc->codename);
     create_smn(s);
-    create_ccp();
+    create_ccp(pmc->codename);
 
     for(int i = 0; i < 2; i++) {
         create_timer(i);

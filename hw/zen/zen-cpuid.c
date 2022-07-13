@@ -72,3 +72,22 @@ uint32_t zen_get_ram_size(zen_codename codename)
         g_assert_not_reached();
     }
 }
+
+uint32_t zen_get_num_ccp_queues(zen_codename codename)
+{
+    switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+    case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
+    case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
+        return 5;
+    case CODENAME_LUCIENNE:
+    case CODENAME_RENOIR:
+    case CODENAME_CEZANNE:
+        return 3;
+    default:
+        g_assert_not_reached();
+    }
+}

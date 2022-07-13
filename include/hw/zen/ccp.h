@@ -25,6 +25,7 @@ struct CcpState {
     AddressSpace dma_as;
     MemoryRegion mmio;
     qemu_irq irq;
+    uint32_t num_queues;
 
     uint32_t queue_prio;
     uint32_t clk_gate_ctl;
