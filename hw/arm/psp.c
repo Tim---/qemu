@@ -11,6 +11,7 @@
 #include "hw/zen/psp-ocbl.h"
 #include "hw/zen/psp-smn-bridge.h"
 #include "hw/zen/zen-utils.h"
+#include "hw/zen/psp-dirty.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -76,6 +77,8 @@ static void psp_machine_init(MachineState *machine)
     create_unimplemented_device_generic(&s->smn_region, "smn-unimp", 0,
                                         0x1000000000UL);
 
+    /* Dirty */
+    psp_create_config(pmc->codename);
 }
 
 static void psp_machine_class_init(ObjectClass *oc, void *data)
