@@ -2,12 +2,13 @@
 #include "hw/boards.h"
 #include "cpu.h"
 #include "hw/zen/zen-rom.h"
-#include "sysemu/block-backend-global-state.h"
+#include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "hw/misc/unimp.h"
 #include "hw/zen/psp-regs.h"
 #include "hw/zen/zen-cpuid.h"
+#include "hw/zen/psp-ocbl.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -22,34 +23,6 @@ struct PspMachineState {
 
 OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
 
-static void psp_on_chip_bootloader(zen_codename codename)
-{
-    bool ret;
-    uint32_t bl_offset, bl_size;
-
-    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
-    assert(dinfo);
-    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
-    assert(blk);
-
-    zen_rom_infos_t infos;
-    ret = zen_rom_find_embedded_fw(&infos, blk, codename);
-    assert(ret);
-
-    ret = zen_rom_get_psp_entry(&infos, AMD_FW_PSP_BOOTLOADER, &bl_offset, &bl_size);
-    assert(ret);
-
-    void *buf = g_malloc(bl_size);
-    zen_rom_read(&infos, bl_offset, buf, bl_size);
-
-    address_space_write(&address_space_memory, 0, MEMTXATTRS_UNSPECIFIED, buf, bl_size);
-
-    // TODO: temporary
-    monitor_remove_blk(blk);
-
-    cpu_set_pc(first_cpu, 0x100);
-}
-
 static void psp_machine_init(MachineState *machine)
 {
     PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(machine);
@@ -63,7 +36,11 @@ static void psp_machine_init(MachineState *machine)
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
     // Simulate on-chip bootloader
-    psp_on_chip_bootloader(pmc->codename);
+    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
+    assert(dinfo);
+    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
+    assert(blk);
+    psp_on_chip_bootloader(blk, pmc->codename);
 
     // Memory regions
     create_unimplemented_device("psp-ccp",       0x03000000, 0x10000);
