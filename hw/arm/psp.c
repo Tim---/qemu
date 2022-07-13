@@ -13,6 +13,7 @@
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/psp-dirty.h"
 #include "hw/zen/psp-timer.h"
+#include "hw/zen/ccp.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -29,46 +30,36 @@ struct PspMachineState {
 
 OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
 
-static void psp_machine_init(MachineState *machine)
+static void create_cpu(const char *cpu_type)
 {
-    PspMachineState *s = PSP_MACHINE(machine);
-    PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(machine);
-    DeviceState *dev;
-
     // Create CPU
     Object *cpuobj;
-    cpuobj = object_new(machine->cpu_type);
+    cpuobj = object_new(cpu_type);
     qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+}
 
-    // Create RAM
-    memory_region_add_subregion(get_system_memory(), 0, machine->ram);
+static void create_ram(MemoryRegion *ram)
+{
+    memory_region_add_subregion(get_system_memory(), 0, ram);
+}
 
-    // Simulate on-chip bootloader
-    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
-    assert(dinfo);
-    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
-    assert(blk);
-    psp_on_chip_bootloader(blk, pmc->codename);
-
-    // Memory regions
-    create_unimplemented_device("psp-ccp",       0x03000000, 0x10000);
-    create_unimplemented_device("psp-regs-pub",  0x03010000, 0x10000);
-    create_unimplemented_device("psp-regs-priv", 0x03200000, 0x10000);
-    create_unimplemented_device("smn-regs",      0x03220000, 0x10000);
-    create_unimplemented_device("x86-regs",      0x03230000, 0x10000);
-
+static void create_psp_regs(zen_codename codename)
+{
     /* Create PSP registers */
-    dev = qdev_new(TYPE_PSP_REGS);
-    qdev_prop_set_uint32(dev, "codename", pmc->codename);
+    DeviceState *dev = qdev_new(TYPE_PSP_REGS);
+    qdev_prop_set_uint32(dev, "codename", codename);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03010000);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x03200000);
+}
 
+static void create_smn(PspMachineState *s)
+{
     /* Create SMN bridge */
     memory_region_init(&s->smn_region, OBJECT(s),
                        "smn-region", 0x1000000000UL);
 
-    dev = qdev_new(TYPE_SMN_BRIDGE);
+    DeviceState *dev = qdev_new(TYPE_SMN_BRIDGE);
     object_property_set_link(OBJECT(dev), "source-memory",
                              OBJECT(&s->smn_region), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -77,15 +68,56 @@ static void psp_machine_init(MachineState *machine)
 
     create_unimplemented_device_generic(&s->smn_region, "smn-unimp", 0,
                                         0x1000000000UL);
+}
 
-    /* Create timers */
+static void create_timer(int i)
+{
+    DeviceState *dev = qdev_new(TYPE_PSP_TIMER);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03010400 + i * 0x24);
+}
+
+static void create_unimplemented(void)
+{
+    create_unimplemented_device("x86-regs",      0x03230000, 0x10000);
+}
+
+static void run_bootloader(zen_codename codename)
+{
+    // Simulate on-chip bootloader
+    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
+    assert(dinfo);
+    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
+    assert(blk);
+    psp_on_chip_bootloader(blk, codename);
+}
+
+static void create_ccp(void)
+{
+    DeviceState *dev = qdev_new(TYPE_CCP);
+    object_property_set_link(OBJECT(dev), "system-memory",
+                             OBJECT(get_system_memory()), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03000000);
+}
+
+static void psp_machine_init(MachineState *machine)
+{
+    PspMachineState *s = PSP_MACHINE(machine);
+    PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(machine);
+
+    create_cpu(machine->cpu_type);
+    create_ram(machine->ram);
+    run_bootloader(pmc->codename);
+    create_unimplemented();
+    create_psp_regs(pmc->codename);
+    create_smn(s);
+    create_ccp();
+
     for(int i = 0; i < 2; i++) {
-        dev = qdev_new(TYPE_PSP_TIMER);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03010400 + i * 0x24);
+        create_timer(i);
     }
 
-    /* Dirty */
     psp_create_config(pmc->codename);
 }
 
