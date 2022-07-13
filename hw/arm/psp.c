@@ -88,91 +88,60 @@ static void psp_machine_class_init(ObjectClass *oc, void *data)
     mc->ignore_memory_transaction_failures = true;
 }
 
-static void psp_machine_common_init(MachineClass *mc)
+static void psp_machine_common_init(ObjectClass *oc, zen_codename codename,
+                                    const char *desc)
 {
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(mc);
-    mc->default_ram_size = zen_get_ram_size(pmc->codename) - 0x1000;
+    MachineClass *mc = MACHINE_CLASS(oc);
+    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
+
+    mc->desc = desc;
+    pmc->codename = codename;
+    mc->default_ram_size = zen_get_ram_size(codename) - 0x1000;
 }
 
 static void psp_machine_summit_ridge_class_init(ObjectClass *oc, void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
-    mc->desc = "AMD PSP (Summit Ridge)";
-    pmc->codename = CODENAME_SUMMIT_RIDGE;
-    psp_machine_common_init(mc);
+    psp_machine_common_init(oc, CODENAME_SUMMIT_RIDGE, "AMD PSP (Summit Ridge)");
 }
 
 static void psp_machine_pinnacle_ridge_class_init(ObjectClass *oc, void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
-    mc->desc = "AMD PSP (Pinnacle Ridge)";
-    pmc->codename = CODENAME_PINNACLE_RIDGE;
-    psp_machine_common_init(mc);
+    psp_machine_common_init(oc, CODENAME_PINNACLE_RIDGE, "AMD PSP (Pinnacle Ridge)");
 }
 
 static void psp_machine_raven_ridge_class_init(ObjectClass *oc, void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
-    mc->desc = "AMD PSP (Raven Ridge)";
-    pmc->codename = CODENAME_RAVEN_RIDGE;
-    psp_machine_common_init(mc);
+    psp_machine_common_init(oc, CODENAME_RAVEN_RIDGE, "AMD PSP (Raven Ridge)");
 }
 
 static void psp_machine_picasso_class_init(ObjectClass *oc, void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
-    mc->desc = "AMD PSP (Picasso)";
-    pmc->codename = CODENAME_PICASSO;
-    psp_machine_common_init(mc);
+    psp_machine_common_init(oc, CODENAME_PICASSO, "AMD PSP (Picasso)");
 }
 
 static void psp_machine_matisse_class_init(ObjectClass *oc, void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
-    mc->desc = "AMD PSP (Matisse)";
-    pmc->codename = CODENAME_MATISSE;
-    psp_machine_common_init(mc);
+    psp_machine_common_init(oc, CODENAME_MATISSE, "AMD PSP (Matisse)");
 }
 
 static void psp_machine_vermeer_class_init(ObjectClass *oc, void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
-    mc->desc = "AMD PSP (Vermeer)";
-    pmc->codename = CODENAME_VERMEER;
-    psp_machine_common_init(mc);
+    psp_machine_common_init(oc, CODENAME_VERMEER, "AMD PSP (Vermeer)");
 }
 
 static void psp_machine_renoir_class_init(ObjectClass *oc, void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
-    mc->desc = "AMD PSP (Renoir)";
-    pmc->codename = CODENAME_RENOIR;
-    psp_machine_common_init(mc);
+    psp_machine_common_init(oc, CODENAME_RENOIR, "AMD PSP (Renoir)");
 }
 
 static void psp_machine_lucienne_class_init(ObjectClass *oc, void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
-    mc->desc = "AMD PSP (Lucienne)";
-    pmc->codename = CODENAME_LUCIENNE;
-    psp_machine_common_init(mc);
+    psp_machine_common_init(oc, CODENAME_LUCIENNE, "AMD PSP (Lucienne)");
 }
 
 static void psp_machine_cezanne_class_init(ObjectClass *oc, void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    PspMachineClass *pmc = PSP_MACHINE_CLASS(oc);
-    mc->desc = "AMD PSP (Cezanne)";
-    pmc->codename = CODENAME_CEZANNE;
-    psp_machine_common_init(mc);
+    psp_machine_common_init(oc, CODENAME_CEZANNE, "AMD PSP (Cezanne)");
 }
 
 static const TypeInfo psp_machine_types[] = {
