@@ -18,5 +18,6 @@ typedef enum {
 uint32_t zen_get_cpuid(zen_codename codename);
 uint32_t zen_get_ram_size(zen_codename codename);
 uint32_t zen_get_bootrom_revid(zen_codename codename);
+uint32_t zen_get_num_ccp_queues(zen_codename codename);
 
 #endif

@@ -13,6 +13,7 @@
 #include "ccp-internal.h"
 #include "hw/zen/ccp-ops.h"
 
+/* Low config registers */
 REG32(QUEUE_MASK,           0x0000)
 REG32(QUEUE_PRIO,           0x0004)
 REG32(REQID_CONFIG,         0x0008)
@@ -22,15 +23,17 @@ REG32(LSB_PUBLIC_MASK_HI,   0x001C)
 REG32(LSB_PRIVATE_MASK_LO,  0x0020)
 REG32(LSB_PRIVATE_MASK_HI,  0x0024)
 
-REG32(CONFIG_0,             0x6000)
-REG32(TRNG_CTL,             0x6008)
-REG32(ZLIB_MAX_SIZE,        0x6020)
-REG32(REG_6024,             0x6024)
-REG32(REG_6028,             0x6028)
-REG32(ZLIB_SIZE,            0x602C)
-REG32(CLK_GATE_CTL,         0x603C)
-REG32(REG_6054,             0x6054)
+/* High config registers, after 0x1000 + (n_channels + 1) */
+REG32(CONFIG_0,             0x0000)
+REG32(TRNG_CTL,             0x0008)
+REG32(ZLIB_MAX_SIZE,        0x0020)
+REG32(REG_6024,             0x0024)
+REG32(REG_6028,             0x0028)
+REG32(ZLIB_SIZE,            0x002C)
+REG32(CLK_GATE_CTL,         0x003C)
+REG32(REG_6054,             0x0054)
 
+/* Queue config registers */
 REG32(Q_CONTROL,            0x000)
     FIELD(Q_CONTROL,    RUN,        0,  1)
     FIELD(Q_CONTROL,    HALT,       1,  1)
@@ -119,7 +122,7 @@ static void ccp_run(CcpState *s, ccp_queue_t *queue)
 }
 
 static uint64_t
-ccp_mmio_read_generic(CcpState *s, hwaddr addr)
+ccp_mmio_read_low(CcpState *s, hwaddr addr)
 {
     switch (addr) {
     case A_QUEUE_MASK:
@@ -132,6 +135,37 @@ ccp_mmio_read_generic(CcpState *s, hwaddr addr)
         return 0x39ce0000;
     case A_LSB_PRIVATE_MASK_HI:
         return 0x0000039c;
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
+                  "(addr 0x%lx)\n", __func__, addr);
+    return 0;
+}
+
+static void
+ccp_mmio_write_low(CcpState *s, hwaddr addr, uint64_t val)
+{
+    switch (addr) {
+    case A_QUEUE_PRIO:
+        s->queue_prio = val;
+        return;
+    case A_REQID_CONFIG:
+        /* assert(val == 0); */
+        return;
+    case A_LSB_PUBLIC_MASK_LO:
+        /* assert(val == 0x39ce0000); */
+        return;
+    case A_LSB_PUBLIC_MASK_HI:
+        /* assert(val == 0x0000039c); */
+        return;
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
+                  "(addr 0x%lx, value 0x%lx)\n", __func__, addr, val);
+}
+
+static uint64_t
+ccp_mmio_read_high(CcpState *s, hwaddr addr)
+{
+    switch (addr) {
     case A_CLK_GATE_CTL:
         return s->clk_gate_ctl;
     case A_ZLIB_SIZE:
@@ -147,21 +181,9 @@ ccp_mmio_read_generic(CcpState *s, hwaddr addr)
 }
 
 static void
-ccp_mmio_write_generic(CcpState *s, hwaddr addr, uint64_t val)
+ccp_mmio_write_high(CcpState *s, hwaddr addr, uint64_t val)
 {
     switch (addr) {
-    case A_QUEUE_PRIO:
-        s->queue_prio = val;
-        return;
-    case A_REQID_CONFIG:
-        /* assert(val == 0); */
-        return;
-    case A_LSB_PUBLIC_MASK_LO:
-        /* assert(val == 0x39ce0000); */
-        return;
-    case A_LSB_PUBLIC_MASK_HI:
-        /* assert(val == 0x0000039c); */
-        return;
     case A_CONFIG_0:
         assert(val == 1);
         return;
@@ -246,12 +268,18 @@ ccp_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     CcpState *s = CCP(opaque);
 
-    if (addr >= 0x1000 && addr < 0x6000) {
-        return ccp_mmio_read_queue(s, &s->queues[(addr >> 12) - 1], addr & 0xfff);
-    } else {
-        return ccp_mmio_read_generic(s, addr);
+    uint32_t bank = addr >> 12;
+    uint32_t offset = addr & 0xfff;
+
+    if(bank == 0) {
+        return ccp_mmio_read_low(s, offset);
+    } else if(bank <= s->num_queues) {
+        return ccp_mmio_read_queue(s, &s->queues[bank - 1], offset);
+    } else if(bank == s->num_queues + 1) {
+        return ccp_mmio_read_high(s, offset);
     }
-    return 0;
+
+    g_assert_not_reached();
 }
 
 static void
@@ -259,11 +287,21 @@ ccp_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     CcpState *s = CCP(opaque);
 
-    if (addr >= 0x1000 && addr < 0x6000) {
-        ccp_mmio_write_queue(s, &s->queues[(addr >> 12) - 1], addr & 0xfff, val);
-    } else {
-        ccp_mmio_write_generic(s, addr, val);
+    uint32_t bank = addr >> 12;
+    uint32_t offset = addr & 0xfff;
+
+    if(bank == 0) {
+        ccp_mmio_write_low(s, offset, val);
+        return;
+    } else if(bank <= s->num_queues) {
+        ccp_mmio_write_queue(s, &s->queues[bank - 1], offset, val);
+        return;
+    } else if(bank == s->num_queues + 1) {
+        ccp_mmio_write_high(s, offset, val);
+        return;
     }
+
+    g_assert_not_reached();
 }
 
 static const MemoryRegionOps mmio_ops = {
@@ -289,6 +327,7 @@ static void ccp_instance_init(Object *obj)
 static Property ccp_props[] = {
     DEFINE_PROP_LINK("system-memory", CcpState, system_memory,
                      TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_UINT32("num-queues", CcpState, num_queues, 5),
     DEFINE_PROP_END_OF_LIST(),
 };
 
