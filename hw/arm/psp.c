@@ -15,6 +15,7 @@
 #include "hw/zen/psp-timer.h"
 #include "hw/zen/ccp.h"
 #include "hw/zen/psp-ht-bridge.h"
+#include "hw/zen/psp-fuses.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -120,6 +121,16 @@ static void create_ccp(zen_codename codename)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03000000);
 }
 
+static void create_fuses(PspMachineState *s, zen_codename codename)
+{
+    DeviceState *dev = qdev_new(TYPE_PSP_FUSES);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    MemoryRegion *region = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    memory_region_add_subregion(&s->smn_region, 0x5d000, region);
+
+    psp_dirty_fuses(codename, dev);
+}
+
 static void psp_machine_init(MachineState *machine)
 {
     PspMachineState *s = PSP_MACHINE(machine);
@@ -133,6 +144,7 @@ static void psp_machine_init(MachineState *machine)
     create_smn(s);
     create_ht(s);
     create_ccp(pmc->codename);
+    create_fuses(s, pmc->codename);
 
     for(int i = 0; i < 2; i++) {
         create_timer(i);

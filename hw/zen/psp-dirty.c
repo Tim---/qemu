@@ -4,6 +4,10 @@
 #include "exec/address-spaces.h"
 #include "qemu/log.h"
 #include "hw/zen/psp-dirty.h"
+#include "hw/zen/psp-fuses.h"
+
+
+/* Config */
 
 /*
 typedef struct {
@@ -58,6 +62,21 @@ void psp_create_config(zen_codename codename)
     case CODENAME_MATISSE:
     case CODENAME_VERMEER:
         create_config(0x4fd50);
+        break;
+    default:
+        break;
+    }
+}
+
+/* Fuses */
+
+void psp_dirty_fuses(zen_codename codename, DeviceState *dev)
+{
+    switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+        /* Needed unless the UMC is marked as emulation/simulation */
+        psp_fuses_write32(dev, 0xcc, 0x20);
         break;
     default:
         break;
