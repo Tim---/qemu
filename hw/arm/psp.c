@@ -6,16 +6,11 @@
 #include "qapi/error.h"
 #include "exec/address-spaces.h"
 #include "hw/misc/unimp.h"
-#include "hw/zen/psp-regs.h"
 #include "hw/zen/zen-cpuid.h"
 #include "hw/zen/psp-ocbl.h"
-#include "hw/zen/psp-smn-bridge.h"
-#include "hw/zen/zen-utils.h"
 #include "hw/zen/psp-dirty.h"
-#include "hw/zen/psp-timer.h"
-#include "hw/zen/ccp.h"
-#include "hw/zen/psp-ht-bridge.h"
-#include "hw/zen/psp-fuses.h"
+#include "hw/zen/psp-soc.h"
+#include "hw/zen/zen-utils.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -33,72 +28,32 @@ struct PspMachineState {
 
 OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
 
-static void create_cpu(const char *cpu_type)
-{
-    // Create CPU
-    Object *cpuobj;
-    cpuobj = object_new(cpu_type);
-    qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
-}
-
-static void create_ram(MemoryRegion *ram)
-{
-    memory_region_add_subregion(get_system_memory(), 0, ram);
-}
-
-static void create_psp_regs(zen_codename codename)
-{
-    /* Create PSP registers */
-    DeviceState *dev = qdev_new(TYPE_PSP_REGS);
-    qdev_prop_set_uint32(dev, "codename", codename);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03010000);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x03200000);
-}
-
 static void create_smn(PspMachineState *s)
 {
-    /* Create SMN bridge */
     memory_region_init(&s->smn_region, OBJECT(s),
                        "smn-region", 0x1000000000UL);
-
-    DeviceState *dev = qdev_new(TYPE_SMN_BRIDGE);
-    object_property_set_link(OBJECT(dev), "source-memory",
-                             OBJECT(&s->smn_region), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03220000);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x01000000);
-
     create_unimplemented_device_generic(&s->smn_region, "smn-unimp", 0,
                                         0x1000000000UL);
 }
 
 static void create_ht(PspMachineState *s)
 {
-    /* Create Hypertransport bridge */
     memory_region_init(&s->ht_region, OBJECT(s),
                        "ht-region", 0x1000000000000ULL);
-
-    DeviceState *dev = qdev_new(TYPE_HT_BRIDGE);
-    object_property_set_link(OBJECT(dev), "source-memory",
-                             OBJECT(&s->ht_region), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03230000);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x04000000);
-
     create_unimplemented_device_generic(&s->ht_region, "ht-unimp", 0,
                                         0x1000000000000ULL);
 }
 
-static void create_timer(int i)
+static void create_soc(PspMachineState *s, const char *cpu_type, zen_codename codename)
 {
-    DeviceState *dev = qdev_new(TYPE_PSP_TIMER);
+    DeviceState *dev = qdev_new(TYPE_PSP_SOC);
+    qdev_prop_set_string(dev, "cpu-type", cpu_type);
+    qdev_prop_set_uint32(dev, "codename", codename);
+    object_property_set_link(OBJECT(dev), "smn-memory",
+                             OBJECT(&s->smn_region), &error_fatal);
+    object_property_set_link(OBJECT(dev), "ht-memory",
+                             OBJECT(&s->ht_region), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03010400 + i * 0x24);
-}
-
-static void create_unimplemented(void)
-{
 }
 
 static void run_bootloader(zen_codename codename)
@@ -108,49 +63,22 @@ static void run_bootloader(zen_codename codename)
     assert(dinfo);
     BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
     assert(blk);
-    psp_on_chip_bootloader(blk, codename);
-}
 
-static void create_ccp(zen_codename codename)
-{
-    DeviceState *dev = qdev_new(TYPE_CCP);
-    object_property_set_link(OBJECT(dev), "system-memory",
-                             OBJECT(get_system_memory()), &error_fatal);
-    qdev_prop_set_uint32(dev, "num-queues", zen_get_num_ccp_queues(codename));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03000000);
-}
-
-static void create_fuses(PspMachineState *s, zen_codename codename)
-{
-    DeviceState *dev = qdev_new(TYPE_PSP_FUSES);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    MemoryRegion *region = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
-    memory_region_add_subregion(&s->smn_region, 0x5d000, region);
-
-    psp_dirty_fuses(codename, dev);
+    AddressSpace *as = cpu_get_address_space(first_cpu, ARMASIdx_S);
+    psp_on_chip_bootloader(as, blk, codename);
 }
 
 static void psp_machine_init(MachineState *machine)
 {
-    PspMachineState *s = PSP_MACHINE(machine);
     PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(machine);
+    PspMachineState *s = PSP_MACHINE(machine);
 
-    create_cpu(machine->cpu_type);
-    create_ram(machine->ram);
-    run_bootloader(pmc->codename);
-    create_unimplemented();
-    create_psp_regs(pmc->codename);
     create_smn(s);
     create_ht(s);
-    create_ccp(pmc->codename);
-    create_fuses(s, pmc->codename);
 
-    for(int i = 0; i < 2; i++) {
-        create_timer(i);
-    }
+    create_soc(s, machine->cpu_type, pmc->codename);
 
-    psp_create_config(pmc->codename);
+    run_bootloader(pmc->codename);
 }
 
 static void psp_machine_class_init(ObjectClass *oc, void *data)
