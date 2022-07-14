@@ -45,23 +45,23 @@ static const MemoryRegionOps config_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void create_config(uint32_t addr)
+static void create_config(MemoryRegion *container, uint32_t addr)
 {
     MemoryRegion *mr = g_malloc0(sizeof(MemoryRegion));
     memory_region_init_io(mr, NULL, &config_ops, NULL, "config", 0x6);
-    memory_region_add_subregion(get_system_memory(), addr, mr);
+    memory_region_add_subregion(container, addr, mr);
 }
 
-void psp_create_config(zen_codename codename)
+void psp_create_config(MemoryRegion *container, zen_codename codename)
 {
     switch(codename) {
     case CODENAME_SUMMIT_RIDGE:
     case CODENAME_PINNACLE_RIDGE:
-        create_config(0x3fa50);
+        create_config(container, 0x3fa50);
         break;
     case CODENAME_MATISSE:
     case CODENAME_VERMEER:
-        create_config(0x4fd50);
+        create_config(container, 0x4fd50);
         break;
     default:
         break;

@@ -7,7 +7,7 @@
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
 
-void psp_on_chip_bootloader(BlockBackend *blk, zen_codename codename)
+void psp_on_chip_bootloader(AddressSpace *as, BlockBackend *blk, zen_codename codename)
 {
     bool ret;
     uint32_t bl_offset, bl_size;
@@ -22,7 +22,7 @@ void psp_on_chip_bootloader(BlockBackend *blk, zen_codename codename)
     void *buf = g_malloc(bl_size);
     zen_rom_read(&infos, bl_offset, buf, bl_size);
 
-    address_space_write(&address_space_memory, 0, MEMTXATTRS_UNSPECIFIED, buf, bl_size);
+    address_space_write(as, 0, MEMTXATTRS_UNSPECIFIED, buf, bl_size);
 
     // TODO: temporary
     monitor_remove_blk(blk);
