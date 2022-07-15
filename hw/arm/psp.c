@@ -119,6 +119,8 @@ static void psp_machine_init(MachineState *machine)
     create_fch(s);
 
     run_bootloader(pmc->codename);
+
+    psp_dirty_create_mp2_ram(&s->smn_region, pmc->codename);
 }
 
 static void psp_machine_class_init(ObjectClass *oc, void *data)
