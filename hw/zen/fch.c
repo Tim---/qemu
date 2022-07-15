@@ -4,13 +4,22 @@
 #include "hw/registerfields.h"
 #include "hw/zen/fch.h"
 
-#define PM 0x0300
+#define PM   0x0300
+#define AOAC 0x1e00
 
 #define TOTAL_SIZE 0x2000
 
 /* FCH::PM:: */
 REG32(S5ResetStat,      PM + 0xC0)
     FIELD(S5ResetStat, UserRst, 16, 1)
+
+/* FCH::AOAC */
+REG8(DevD3Ctl_eSPI,     AOAC + 0x76)
+REG8(DevD3State_eSPI,   AOAC + 0x77)
+    FIELD(DevD3State_eSPI, RstBState,     2, 1)
+    FIELD(DevD3State_eSPI, RefClkOkState, 1, 1)
+    FIELD(DevD3State_eSPI, PwrRstBState,  0, 1)
+
 
 struct FchState {
     /*< private >*/
@@ -55,6 +64,21 @@ static void fch_init(Object *obj)
 {
 }
 
+static void fch_initialize_registers(FchState *s)
+{
+    /* Signal that the reboot was cause by the user (boot from S5 cold) */
+    uint32_t s5_reset_stat = 0xffffffff;
+    s5_reset_stat = FIELD_DP32(s5_reset_stat, S5ResetStat, UserRst, 1);
+    stl_le_p(s->storage + A_S5ResetStat, s5_reset_stat);
+
+    /* Signal that the eSPI module is powered on */
+    uint8_t espi_aoac = 0;
+    espi_aoac = FIELD_DP32(espi_aoac, DevD3State_eSPI, RstBState, 1);
+    espi_aoac = FIELD_DP32(espi_aoac, DevD3State_eSPI, RefClkOkState, 1);
+    espi_aoac = FIELD_DP32(espi_aoac, DevD3State_eSPI, PwrRstBState, 1);
+    stb_p(s->storage + A_DevD3State_eSPI, espi_aoac);
+}
+
 static void fch_realize(DeviceState *dev, Error **errp)
 {
     FchState *s = FCH(dev);
@@ -65,9 +89,7 @@ static void fch_realize(DeviceState *dev, Error **errp)
                           "fch", TOTAL_SIZE);
     sysbus_init_mmio(sbd, &s->regs_region);
 
-    uint32_t s5_reset_stat = 0xffffffff;
-    s5_reset_stat = FIELD_DP32(s5_reset_stat, S5ResetStat, UserRst, 1);
-    stl_le_p(s->storage + A_S5ResetStat, s5_reset_stat);
+    fch_initialize_registers(s);
 }
 
 static void fch_class_init(ObjectClass *oc, void *data)
