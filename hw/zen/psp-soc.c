@@ -33,7 +33,7 @@ static void create_memory(PspSocState *s)
     memory_region_init(&s->container, OBJECT(s), "psp-mem", 0x100000000ULL);
 
     /* Create RAM at the start */
-    memory_region_init_ram(&s->ram, OBJECT(s), "psp-soc-ram", zen_get_ram_size(s->codename) - 0x1000, &error_fatal);
+    memory_region_init_ram(&s->ram, OBJECT(s), "psp-soc-ram", zen_get_ram_size(s->codename), &error_fatal);
     memory_region_add_subregion(&s->container, 0, &s->ram);
 }
 
@@ -128,9 +128,6 @@ static void psp_soc_realize(DeviceState *dev, Error **errp)
     for(int i = 0; i < 2; i++) {
         create_timer(s, i);
     }
-
-    // Dirty !
-    psp_create_config(&s->container, s->codename);
 }
 
 static Property psp_soc_props[] = {
