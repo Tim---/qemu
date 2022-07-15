@@ -7,6 +7,41 @@
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
 
+/*
+typedef struct {
+    uint8_t PhysDieId;
+    uint8_t SocketId;
+    uint8_t PackageType;
+    uint8_t SystemSocketCount;
+    uint8_t unknown0;
+    uint8_t DiesPerSocket;
+} PspBootRomServices_t;
+*/
+
+static void create_config(AddressSpace *as, uint32_t addr)
+{
+    // SystemSocketCount
+    address_space_stb(as, addr + 3, 1, MEMTXATTRS_UNSPECIFIED, NULL);
+    // DiesPerSocket
+    address_space_stb(as, addr + 5, 1, MEMTXATTRS_UNSPECIFIED, NULL);
+}
+
+static void psp_create_config(AddressSpace *as, zen_codename codename)
+{
+    switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+        create_config(as, 0x3fa50);
+        break;
+    case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
+        create_config(as, 0x4fd50);
+        break;
+    default:
+        break;
+    }
+}
+
 void psp_on_chip_bootloader(AddressSpace *as, BlockBackend *blk, zen_codename codename)
 {
     bool ret;
@@ -28,4 +63,6 @@ void psp_on_chip_bootloader(AddressSpace *as, BlockBackend *blk, zen_codename co
     monitor_remove_blk(blk);
 
     cpu_set_pc(first_cpu, 0x100);
+
+    psp_create_config(as, codename);
 }
