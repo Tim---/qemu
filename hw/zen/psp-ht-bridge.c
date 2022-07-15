@@ -27,6 +27,7 @@
 #define A_ARRAY_B_BASE  A_ARRAY_A_END
 #define A_ARRAY_B_END   (A_ARRAY_B_BASE + HT_BRIDGE_MAX_MAPPINGS * 4)
 
+/* 0x5ec on some platforms ! */
 #define A_DOIT          0x05F0
 
 #define A_KEY_BASE      0x8000
