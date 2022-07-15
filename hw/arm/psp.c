@@ -11,6 +11,7 @@
 #include "hw/zen/psp-dirty.h"
 #include "hw/zen/psp-soc.h"
 #include "hw/zen/zen-utils.h"
+#include "hw/zen/fch.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -44,6 +45,34 @@ static void create_ht(PspMachineState *s)
                                         0x1000000000000ULL);
 }
 
+static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
+{
+    MemoryRegion *region = sysbus_mmio_get_region(sbd, n);
+
+    if(alias) {
+        MemoryRegion *alias = g_new(MemoryRegion, 1);
+        g_autofree char *alias_name = g_strdup_printf("alias-%s",
+                                                    memory_region_name(region));
+
+        memory_region_init_alias(alias, memory_region_owner(region), alias_name,
+                                region, 0, memory_region_size(region));
+        
+        region = alias;
+    }
+
+    memory_region_add_subregion(container, addr, region);
+}
+
+static void smn_mmio_map(PspMachineState *s, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
+{
+    generic_map(&s->smn_region, sbd, n, addr, alias);
+}
+
+static void ht_mmio_map(PspMachineState *s, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
+{
+    generic_map(&s->ht_region, sbd, n, addr, alias);
+}
+
 static void create_soc(PspMachineState *s, const char *cpu_type, zen_codename codename)
 {
     DeviceState *dev = qdev_new(TYPE_PSP_SOC);
@@ -68,6 +97,15 @@ static void run_bootloader(zen_codename codename)
     psp_on_chip_bootloader(as, blk, codename);
 }
 
+static void create_fch(PspMachineState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_FCH);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    ht_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0xfed80000, false);
+    smn_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x02d01000, true);
+}
+
 static void psp_machine_init(MachineState *machine)
 {
     PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(machine);
@@ -77,6 +115,8 @@ static void psp_machine_init(MachineState *machine)
     create_ht(s);
 
     create_soc(s, machine->cpu_type, pmc->codename);
+
+    create_fch(s);
 
     run_bootloader(pmc->codename);
 }
