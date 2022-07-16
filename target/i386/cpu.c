@@ -43,6 +43,7 @@
 
 #include "disas/capstone.h"
 #include "cpu-internal.h"
+#include "trace.h"
 
 /* Helpers for building CPUID[2] descriptors: */
 
@@ -5860,6 +5861,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *edx = 0;
         break;
     }
+
+    trace_x86_cpuid(index, count, *eax, *ebx, *ecx, *edx);
 }
 
 static void x86_cpu_set_sgxlepubkeyhash(CPUX86State *env)
