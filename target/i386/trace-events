@@ -14,3 +14,10 @@ kvm_sev_attestation_report(const char *mnonce, const char *data) "mnonce %s data
 kvm_sev_snp_launch_start(uint64_t policy, char *gosvw) "policy 0x%" PRIx64 " gosvw %s"
 kvm_sev_snp_launch_update(uint64_t src, uint64_t gpa, uint64_t len, const char *type) "src 0x%" PRIx64 " gpa 0x%" PRIx64 " len 0x%" PRIx64 " (%s page)"
 kvm_sev_snp_launch_finish(char *id_block, char *id_auth, char *host_data) "id_block %s id_auth %s host_data %s"
+
+# cpu.c
+x86_cpuid(uint32_t index, uint32_t count, uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx) "cpuid 0x%x 0x%x - 0x%x 0x%x 0x%x 0x%x"
+
+# tcg/sysemu/misc_helper.c
+x86_rdmsr(uint32_t index, uint64_t res) "rdmsr 0x%x - 0x%lx"
+x86_wrmsr(uint32_t index, uint64_t res) "wrmsr 0x%x - 0x%lx"

@@ -26,6 +26,7 @@
 #include "exec/exec-all.h"
 #include "tcg/helper-tcg.h"
 #include "hw/i386/apic.h"
+#include "trace.h"
 
 void helper_outb(CPUX86State *env, uint32_t port, uint32_t data)
 {
@@ -137,6 +138,8 @@ void helper_wrmsr(CPUX86State *env)
 
     val = ((uint32_t)env->regs[R_EAX]) |
         ((uint64_t)((uint32_t)env->regs[R_EDX]) << 32);
+
+    trace_x86_wrmsr(env->regs[R_ECX], val);
 
     switch ((uint32_t)env->regs[R_ECX]) {
     case MSR_IA32_SYSENTER_CS:
@@ -499,6 +502,8 @@ void helper_rdmsr(CPUX86State *env)
     }
     env->regs[R_EAX] = (uint32_t)(val);
     env->regs[R_EDX] = (uint32_t)(val >> 32);
+
+    trace_x86_rdmsr(env->regs[R_ECX], val);
 }
 
 void helper_flush_page(CPUX86State *env, target_ulong addr)
