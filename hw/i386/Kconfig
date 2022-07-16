@@ -137,3 +137,7 @@ config VMPORT
 config VMMOUSE
     bool
     depends on VMPORT
+
+config PC_ZEN
+    bool
+    select ZEN
