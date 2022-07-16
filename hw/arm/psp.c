@@ -23,26 +23,32 @@ struct PspMachineClass {
 struct PspMachineState {
     MachineState parent;
 
-    MemoryRegion smn_region;
-    MemoryRegion ht_region;
+    MemoryRegion smn;
+    MemoryRegion ht;
+    MemoryRegion ht_io;
 };
 
 OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
 
+static void create_region_with_unimpl(MemoryRegion *region, Object *owner,
+                                      const char *name, uint64_t size)
+{
+    g_autofree char *unimp_name = g_strdup_printf("%s-unimp", name);
+
+    memory_region_init(region, owner, name, size);
+    create_unimplemented_device_generic(region, unimp_name, 0, size);
+}
+
 static void create_smn(PspMachineState *s)
 {
-    memory_region_init(&s->smn_region, OBJECT(s),
-                       "smn-region", 0x1000000000UL);
-    create_unimplemented_device_generic(&s->smn_region, "smn-unimp", 0,
-                                        0x1000000000UL);
+    create_region_with_unimpl(&s->smn, OBJECT(s), "smn", 0x1000000000UL);
 }
 
 static void create_ht(PspMachineState *s)
 {
-    memory_region_init(&s->ht_region, OBJECT(s),
-                       "ht-region", 0x1000000000000ULL);
-    create_unimplemented_device_generic(&s->ht_region, "ht-unimp", 0,
-                                        0x1000000000000ULL);
+    create_region_with_unimpl(&s->ht, OBJECT(s), "ht", 0x1000000000000ULL);
+    create_region_with_unimpl(&s->ht_io, OBJECT(s), "ht-io", 0x100000000ULL);
+    memory_region_add_subregion(&s->ht, 0xfffdfc000000, &s->ht_io);
 }
 
 static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
@@ -65,12 +71,12 @@ static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwadd
 
 static void smn_mmio_map(PspMachineState *s, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
 {
-    generic_map(&s->smn_region, sbd, n, addr, alias);
+    generic_map(&s->smn, sbd, n, addr, alias);
 }
 
 static void ht_mmio_map(PspMachineState *s, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
 {
-    generic_map(&s->ht_region, sbd, n, addr, alias);
+    generic_map(&s->ht, sbd, n, addr, alias);
 }
 
 static void create_soc(PspMachineState *s, const char *cpu_type, zen_codename codename)
@@ -79,9 +85,9 @@ static void create_soc(PspMachineState *s, const char *cpu_type, zen_codename co
     qdev_prop_set_string(dev, "cpu-type", cpu_type);
     qdev_prop_set_uint32(dev, "codename", codename);
     object_property_set_link(OBJECT(dev), "smn-memory",
-                             OBJECT(&s->smn_region), &error_fatal);
+                             OBJECT(&s->smn), &error_fatal);
     object_property_set_link(OBJECT(dev), "ht-memory",
-                             OBJECT(&s->ht_region), &error_fatal);
+                             OBJECT(&s->ht), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 }
 
@@ -120,7 +126,7 @@ static void psp_machine_init(MachineState *machine)
 
     run_bootloader(pmc->codename);
 
-    psp_dirty_create_mp2_ram(&s->smn_region, pmc->codename);
+    psp_dirty_create_mp2_ram(&s->smn, pmc->codename);
 }
 
 static void psp_machine_class_init(ObjectClass *oc, void *data)
