@@ -152,3 +152,7 @@ config XEN_EMU
     bool
     default y
     depends on KVM && I386
+
+config PC_ZEN
+    bool
+    select ZEN

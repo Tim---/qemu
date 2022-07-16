@@ -18,14 +18,15 @@ void zen_rom_read(zen_rom_infos_t *infos, uint32_t offset, void *buf, int bytes)
     assert(ret >= 0);
 }
 
-bool zen_rom_get_psp_entry(zen_rom_infos_t *infos, amd_fw_type type, uint32_t *entry_offset, uint32_t *entry_size)
+bool zen_rom_get_psp_entry(zen_rom_infos_t *infos, amd_fw_type type,
+                           uint32_t *entry_offset, uint32_t *entry_size)
 {
     psp_directory_header hdr;
     psp_directory_entry entry;
     int i;
     uint32_t offset = infos->psp_dir_offset;
 
-    zen_rom_read(infos, infos->psp_dir_offset, &hdr, sizeof(hdr));
+    zen_rom_read(infos, offset, &hdr, sizeof(hdr));
 
     assert(hdr.cookie == PSP_COOKIE);
     offset += sizeof(hdr);
@@ -36,6 +37,35 @@ bool zen_rom_get_psp_entry(zen_rom_infos_t *infos, amd_fw_type type, uint32_t *e
         if(entry.type == type) {
             *entry_offset = entry.addr;
             *entry_size = entry.size;
+            return true;
+        }
+
+        offset += sizeof(entry);
+    }
+    return false;
+}
+
+bool zen_rom_get_bios_entry(zen_rom_infos_t *infos, amd_bios_type type,
+                            uint32_t *entry_offset, uint32_t *entry_size,
+                            uint32_t *entry_dst)
+{
+    bios_directory_hdr hdr;
+    bios_directory_entry entry;
+    int i;
+    uint32_t offset = infos->bios_dir_offset;
+
+    zen_rom_read(infos, offset, &hdr, sizeof(hdr));
+
+    assert(hdr.cookie == BHD_COOKIE);
+    offset += sizeof(hdr);
+
+    for(i = 0; i < hdr.num_entries; i++) {
+        zen_rom_read(infos, offset, &entry, sizeof(entry));
+
+        if(entry.type == type) {
+            *entry_offset = entry.source;
+            *entry_size = entry.size;
+            *entry_dst = entry.dest;
             return true;
         }
 
@@ -68,7 +98,43 @@ static bool zen_rom_parse_psp_combo(zen_rom_infos_t *infos, uint32_t offset)
     return false;
 }
 
-bool zen_rom_find_embedded_fw(zen_rom_infos_t *infos, BlockBackend *blk, zen_codename codename)
+static bool zen_rom_parse_bios_directory(zen_rom_infos_t *infos,
+                                         embedded_firmware *efs,
+                                         zen_codename codename)
+{
+    uint32_t bios_dir_addr;
+
+    switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+        bios_dir_addr = efs->bios0_entry;
+        break;
+    case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
+        bios_dir_addr = efs->bios1_entry;
+        break;
+    case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
+        bios_dir_addr = efs->bios2_entry;
+        break;
+    case CODENAME_LUCIENNE:
+    case CODENAME_RENOIR:
+    case CODENAME_CEZANNE:
+        bios_dir_addr = efs->bios3_entry;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    bios_directory_hdr hdr;
+    zen_rom_read(infos, bios_dir_addr, &hdr, sizeof(hdr));
+    assert(hdr.cookie == BHD_COOKIE);
+    infos->bios_dir_offset = bios_dir_addr;
+
+    return true;
+}
+
+bool zen_rom_init(zen_rom_infos_t *infos, BlockBackend *blk, zen_codename codename)
 {
     uint64_t size;
     uint64_t rom_base;
@@ -90,6 +156,7 @@ bool zen_rom_find_embedded_fw(zen_rom_infos_t *infos, BlockBackend *blk, zen_cod
             if(efs.signature == EMBEDDED_FW_SIGNATURE) {
                 infos->emb_fw_offset = rom_offsets[i];
                 if(zen_rom_parse_psp_combo(infos, efs.combo_psp_directory)) {
+                    assert(zen_rom_parse_bios_directory(infos, &efs, codename));
                     return true;
                 }
             }

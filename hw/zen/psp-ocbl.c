@@ -48,7 +48,7 @@ void psp_on_chip_bootloader(AddressSpace *as, BlockBackend *blk, zen_codename co
     uint32_t bl_offset, bl_size;
 
     zen_rom_infos_t infos;
-    ret = zen_rom_find_embedded_fw(&infos, blk, codename);
+    ret = zen_rom_init(&infos, blk, codename);
     assert(ret);
 
     ret = zen_rom_get_psp_entry(&infos, AMD_FW_PSP_BOOTLOADER, &bl_offset, &bl_size);
