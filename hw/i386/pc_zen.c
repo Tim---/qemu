@@ -63,14 +63,22 @@ static void pc_zen_machine_reset(MachineState *machine)
     }
 }
 
-#include "qemu/qemu-print.h"
+static zen_codename pc_zen_get_codename(MachineState *machine)
+{
+    const char *class_name = machine->cpu_type;
+    assert(g_str_has_suffix(class_name, X86_CPU_TYPE_SUFFIX));
+    g_autofree char *name = g_strndup(class_name,
+                            strlen(class_name) - strlen(X86_CPU_TYPE_SUFFIX));
+    return zen_get_codename(name);
+}
 
 static void pc_zen_machine_state_init(MachineState *machine)
 {
     X86MachineState *x86ms = X86_MACHINE(machine);
     PcZenMachineState *mms = PC_ZEN_MACHINE(machine);
 
-    machine->cpu_type = g_strdup_printf("%s-x86_64-cpu", zen_get_name(mms->codename));
+    mms->codename = pc_zen_get_codename(machine);
+
     x86_cpus_init(x86ms, CPU_VERSION_LATEST);
 
     memory_region_add_subregion(get_system_memory(), 0, machine->ram);
@@ -80,28 +88,6 @@ static void pc_zen_machine_state_init(MachineState *machine)
 
 static void pc_zen_machine_initfn(Object *obj)
 {
-}
-
-static char *pc_zen_get_codename(Object *obj, Error **errp)
-{
-    PcZenMachineState *mms = PC_ZEN_MACHINE(obj);
-
-    return strdup(zen_get_name(mms->codename));
-}
-
-static void pc_zen_set_codename(Object *obj, const char *value, Error **errp)
-{
-    PcZenMachineState *mms = PC_ZEN_MACHINE(obj);
-
-    mms->codename = zen_get_codename(value);
-}
-
-static void pc_zen_class_props_init(ObjectClass *oc)
-{
-    object_class_property_add_str(oc, "codename", pc_zen_get_codename,
-                                   pc_zen_set_codename);
-    object_class_property_set_description(oc, "codename",
-                                          "Zen codename");
 }
 
 static void pc_zen_class_init(ObjectClass *oc, void *data)
@@ -116,7 +102,6 @@ static void pc_zen_class_init(ObjectClass *oc, void *data)
     mc->default_ram_id = "pc_zen.ram";
     mc->max_cpus = 1;
     mc->reset = pc_zen_machine_reset;
-    pc_zen_class_props_init(oc);
 }
 
 static const TypeInfo pc_zen_machine_info = {
