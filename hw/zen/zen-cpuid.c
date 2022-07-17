@@ -1,6 +1,57 @@
 #include "qemu/osdep.h"
 #include "hw/zen/zen-cpuid.h"
 
+const char *zen_get_name(zen_codename codename)
+{
+    switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
+        return "summit-ridge";
+    case CODENAME_PINNACLE_RIDGE:
+        return "pinnacle-ridge";
+    case CODENAME_RAVEN_RIDGE:
+        return "raven-ridge";
+    case CODENAME_PICASSO:
+        return "picasso";
+    case CODENAME_MATISSE:
+        return "matisse";
+    case CODENAME_VERMEER:
+        return "vermeer";
+    case CODENAME_LUCIENNE:
+        return "lucienne";
+    case CODENAME_RENOIR:
+        return "renoir";
+    case CODENAME_CEZANNE:
+        return "cezanne";
+    default:
+        g_assert_not_reached();
+    }
+}
+
+zen_codename zen_get_codename(const char *name)
+{
+    if(!strcmp(name, "summit-ridge")) {
+        return CODENAME_SUMMIT_RIDGE;
+    } else if(!strcmp(name, "pinnacle-ridge")) {
+        return CODENAME_PINNACLE_RIDGE;
+    } else if(!strcmp(name, "raven-ridge")) {
+        return CODENAME_RAVEN_RIDGE;
+    } else if(!strcmp(name, "picasso")) {
+        return CODENAME_PICASSO;
+    } else if(!strcmp(name, "matisse")) {
+        return CODENAME_MATISSE;
+    } else if(!strcmp(name, "vermeer")) {
+        return CODENAME_VERMEER;
+    } else if(!strcmp(name, "lucienne")) {
+        return CODENAME_LUCIENNE;
+    } else if(!strcmp(name, "renoir")) {
+        return CODENAME_RENOIR;
+    } else if(!strcmp(name, "cezanne")) {
+        return CODENAME_CEZANNE;
+    }
+    g_assert_not_reached();
+}
+
+
 uint32_t zen_get_cpuid(zen_codename codename)
 {
     switch(codename) {

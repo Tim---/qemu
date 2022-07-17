@@ -46,6 +46,7 @@
 #include "disas/capstone.h"
 #include "cpu-internal.h"
 #include "trace.h"
+#include "hw/zen/zen-cpuid.h"
 
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp);
 
@@ -2397,54 +2398,6 @@ static const CPUCaches epyc_genoa_cache_info = {
  */
 
 static const X86CPUDefinition builtin_x86_defs[] = {
-    {
-        .name = "matisse",
-        .level = 0xd,
-        .vendor = CPUID_VENDOR_AMD,
-        .family = 0x17,
-        .model = 0x71,
-        .stepping = 0x00,
-        /* Missing: CPUID_HT */
-        .features[FEAT_1_EDX] =
-            CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
-            CPUID_CLFLUSH | CPUID_PSE36 | CPUID_PAT | CPUID_CMOV | CPUID_MCA |
-            CPUID_PGE | CPUID_MTRR | CPUID_SEP | CPUID_APIC | CPUID_CX8 |
-            CPUID_MCE | CPUID_PAE | CPUID_MSR | CPUID_TSC | CPUID_PSE |
-            CPUID_DE | CPUID_VME | CPUID_FP87,
-        /* Missing: CPUID_EXT_FMA | CPUID_EXT_F16C | CPUID_EXT_AVX | CPUID_EXT_OSXSAVE */
-        .features[FEAT_1_ECX] =
-            CPUID_EXT_RDRAND |  CPUID_EXT_XSAVE | CPUID_EXT_AES |
-            CPUID_EXT_POPCNT | CPUID_EXT_MOVBE | CPUID_EXT_SSE42 |
-            CPUID_EXT_SSE41 | CPUID_EXT_CX16 | CPUID_EXT_SSSE3 |
-            CPUID_EXT_MONITOR | CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSE3,
-        /* Missing: CPUID_EXT2_FFXSR */
-        .features[FEAT_8000_0001_EDX] =
-            CPUID_EXT2_LM | CPUID_EXT2_RDTSCP | CPUID_EXT2_PDPE1GB |
-            CPUID_EXT2_MMXEXT | CPUID_EXT2_NX | CPUID_EXT2_SYSCALL,
-        /* Missing: CPUID_EXT3_CMP_LEG | CPUID_EXT3_EXTAPIC | CPUID_EXT3_MISALIGNSSE |
-                    CPUID_EXT3_OSVW | CPUID_EXT3_3DNOWPREFETCH | CPUID_EXT3_WDT |
-                    CPUID_EXT3_SKINIT | CPUID_EXT3_TCE | CPUID_EXT3_PERFNB |
-                    CPUID_EXT3_PERFCORE | CPUID_EXT3_TOPOEXT
-        */
-        .features[FEAT_8000_0001_ECX] =
-            CPUID_EXT3_SSE4A | CPUID_EXT3_ABM | CPUID_EXT3_CR8LEG |
-            CPUID_EXT3_SVM | CPUID_EXT3_LAHF_LM,
-        /* Missing: CPUID_7_0_EBX_AVX2 | CPUID_7_0_EBX_RDSEED | CPUID_7_0_EBX_SHA_NI*/
-        .features[FEAT_7_0_EBX] =
-            CPUID_7_0_EBX_FSGSBASE | CPUID_7_0_EBX_BMI1 |  CPUID_7_0_EBX_SMEP |
-            CPUID_7_0_EBX_BMI2 |  CPUID_7_0_EBX_ADX | CPUID_7_0_EBX_SMAP | 
-            CPUID_7_0_EBX_CLFLUSHOPT,
-        .features[FEAT_XSAVE] =
-            CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XSAVEC |
-            CPUID_XSAVE_XGETBV1,
-        .features[FEAT_6_EAX] =
-            CPUID_6_EAX_ARAT,
-        .features[FEAT_SVM] =
-            CPUID_SVM_NPT | CPUID_SVM_NRIPSAVE,
-        .xlevel = 0x8000001E,
-        .model_id = "AMD Matisse Processor",
-        .cache_info = &epyc_cache_info,
-    },
     {
         .name = "qemu64",
         .level = 0xd,
@@ -8537,6 +8490,51 @@ static const TypeInfo x86_base_cpu_type_info = {
         .class_init = x86_cpu_base_class_init,
 };
 
+static const X86CPUDefinition zen_template = {
+    .level = 0xd,
+    .vendor = CPUID_VENDOR_AMD,
+    .xlevel = 0x8000001E,
+    .cache_info = &epyc_cache_info,
+};
+
+static void x86_cpu_register_zen_type(zen_codename codename)
+{
+    X86CPUDefinition *def = g_malloc(sizeof(*def));
+    memcpy(def, &zen_template, sizeof(*def));
+
+    uint32_t cpuid = zen_get_cpuid(codename);
+
+    uint32_t ext_fam = (cpuid >> 20) & 0xff;
+    uint32_t base_fam = (cpuid >> 8) & 0xf;
+    uint32_t ext_mod = (cpuid >> 16) & 0xf;
+    uint32_t base_mod = (cpuid >> 4) & 0xf;
+    uint32_t stepping = cpuid & 0xf;
+
+    const char *name = zen_get_name(codename);
+    char *model_id = g_strdup_printf("AMD %s processor", name);
+
+    def->name = name;
+    def->family = ext_fam + base_fam;
+    def->model = (ext_mod << 4) | base_mod;
+    def->stepping = stepping;
+    def->model_id = model_id;
+
+    x86_register_cpudef_types(def);
+}
+
+static void x86_cpu_register_zen_types(void)
+{
+    x86_cpu_register_zen_type(CODENAME_SUMMIT_RIDGE);
+    x86_cpu_register_zen_type(CODENAME_PINNACLE_RIDGE);
+    x86_cpu_register_zen_type(CODENAME_RAVEN_RIDGE);
+    x86_cpu_register_zen_type(CODENAME_PICASSO);
+    x86_cpu_register_zen_type(CODENAME_MATISSE);
+    x86_cpu_register_zen_type(CODENAME_VERMEER);
+    x86_cpu_register_zen_type(CODENAME_LUCIENNE);
+    x86_cpu_register_zen_type(CODENAME_RENOIR);
+    x86_cpu_register_zen_type(CODENAME_CEZANNE);
+}
+
 static void x86_cpu_register_types(void)
 {
     int i;
@@ -8545,6 +8543,7 @@ static void x86_cpu_register_types(void)
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
         x86_register_cpudef_types(&builtin_x86_defs[i]);
     }
+    x86_cpu_register_zen_types();
     type_register_static(&max_x86_cpu_type_info);
     type_register_static(&x86_base_cpu_type_info);
 }
