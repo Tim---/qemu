@@ -19,5 +19,7 @@ uint32_t zen_get_cpuid(zen_codename codename);
 uint32_t zen_get_ram_size(zen_codename codename);
 uint32_t zen_get_bootrom_revid(zen_codename codename);
 uint32_t zen_get_num_ccp_queues(zen_codename codename);
+const char *zen_get_name(zen_codename codename);
+zen_codename zen_get_codename(const char *name);
 
 #endif
