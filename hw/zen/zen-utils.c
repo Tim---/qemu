@@ -17,3 +17,11 @@ void create_unimplemented_device_generic(MemoryRegion *region, const char *name,
 
 }
 
+void create_region_with_unimpl(MemoryRegion *region, Object *owner,
+                                      const char *name, uint64_t size)
+{
+    g_autofree char *unimp_name = g_strdup_printf("%s-unimp", name);
+
+    memory_region_init(region, owner, name, size);
+    create_unimplemented_device_generic(region, unimp_name, 0, size);
+}

@@ -15,15 +15,6 @@ struct ZenMoboState {
     MemoryRegion ht_io;
 };
 
-static void create_region_with_unimpl(MemoryRegion *region, Object *owner,
-                                      const char *name, uint64_t size)
-{
-    g_autofree char *unimp_name = g_strdup_printf("%s-unimp", name);
-
-    memory_region_init(region, owner, name, size);
-    create_unimplemented_device_generic(region, unimp_name, 0, size);
-}
-
 static void create_smn(ZenMoboState *s)
 {
     create_region_with_unimpl(&s->smn, OBJECT(s), "smn", 0x1000000000UL);
