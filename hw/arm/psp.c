@@ -12,6 +12,7 @@
 #include "hw/zen/psp-soc.h"
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/fch.h"
+#include "hw/zen/fch-spi.h"
 #include "hw/zen/zen-mobo.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
@@ -64,6 +65,13 @@ static void create_fch(PspMachineState *s)
     zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x02d01000, true);
 }
 
+static void create_fch_spi(PspMachineState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_FCH_SPI);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x02dc4000, false);
+}
+
 static void create_mobo(PspMachineState *s)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
@@ -83,6 +91,7 @@ static void psp_machine_init(MachineState *machine)
     create_soc(s, machine->cpu_type, pmc->codename);
 
     create_fch(s);
+    create_fch_spi(s);
 
     run_bootloader(pmc->codename);
 
