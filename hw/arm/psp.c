@@ -12,6 +12,7 @@
 #include "hw/zen/psp-soc.h"
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/fch.h"
+#include "hw/zen/zen-mobo.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -23,61 +24,12 @@ struct PspMachineClass {
 struct PspMachineState {
     MachineState parent;
 
-    MemoryRegion smn;
-    MemoryRegion ht;
-    MemoryRegion ht_io;
+    DeviceState *mobo;
+    MemoryRegion *smn;
+    MemoryRegion *ht;
 };
 
 OBJECT_DECLARE_TYPE(PspMachineState, PspMachineClass, PSP_MACHINE)
-
-static void create_region_with_unimpl(MemoryRegion *region, Object *owner,
-                                      const char *name, uint64_t size)
-{
-    g_autofree char *unimp_name = g_strdup_printf("%s-unimp", name);
-
-    memory_region_init(region, owner, name, size);
-    create_unimplemented_device_generic(region, unimp_name, 0, size);
-}
-
-static void create_smn(PspMachineState *s)
-{
-    create_region_with_unimpl(&s->smn, OBJECT(s), "smn", 0x1000000000UL);
-}
-
-static void create_ht(PspMachineState *s)
-{
-    create_region_with_unimpl(&s->ht, OBJECT(s), "ht", 0x1000000000000ULL);
-    create_region_with_unimpl(&s->ht_io, OBJECT(s), "ht-io", 0x100000000ULL);
-    memory_region_add_subregion(&s->ht, 0xfffdfc000000, &s->ht_io);
-}
-
-static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
-{
-    MemoryRegion *region = sysbus_mmio_get_region(sbd, n);
-
-    if(alias) {
-        MemoryRegion *alias = g_new(MemoryRegion, 1);
-        g_autofree char *alias_name = g_strdup_printf("alias-%s",
-                                                    memory_region_name(region));
-
-        memory_region_init_alias(alias, memory_region_owner(region), alias_name,
-                                region, 0, memory_region_size(region));
-        
-        region = alias;
-    }
-
-    memory_region_add_subregion(container, addr, region);
-}
-
-static void smn_mmio_map(PspMachineState *s, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
-{
-    generic_map(&s->smn, sbd, n, addr, alias);
-}
-
-static void ht_mmio_map(PspMachineState *s, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
-{
-    generic_map(&s->ht, sbd, n, addr, alias);
-}
 
 static void create_soc(PspMachineState *s, const char *cpu_type, zen_codename codename)
 {
@@ -85,9 +37,9 @@ static void create_soc(PspMachineState *s, const char *cpu_type, zen_codename co
     qdev_prop_set_string(dev, "cpu-type", cpu_type);
     qdev_prop_set_uint32(dev, "codename", codename);
     object_property_set_link(OBJECT(dev), "smn-memory",
-                             OBJECT(&s->smn), &error_fatal);
+                             OBJECT(s->smn), &error_fatal);
     object_property_set_link(OBJECT(dev), "ht-memory",
-                             OBJECT(&s->ht), &error_fatal);
+                             OBJECT(s->ht), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 }
 
@@ -108,8 +60,17 @@ static void create_fch(PspMachineState *s)
     DeviceState *dev = qdev_new(TYPE_FCH);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
-    ht_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0xfed80000, false);
-    smn_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x02d01000, true);
+    zen_mobo_ht_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0xfed80000, false);
+    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x02d01000, true);
+}
+
+static void create_mobo(PspMachineState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    s->mobo = dev;
+    s->ht = zen_mobo_get_ht(dev);
+    s->smn = zen_mobo_get_smn(dev);
 }
 
 static void psp_machine_init(MachineState *machine)
@@ -117,8 +78,7 @@ static void psp_machine_init(MachineState *machine)
     PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(machine);
     PspMachineState *s = PSP_MACHINE(machine);
 
-    create_smn(s);
-    create_ht(s);
+    create_mobo(s);
 
     create_soc(s, machine->cpu_type, pmc->codename);
 
@@ -126,7 +86,7 @@ static void psp_machine_init(MachineState *machine)
 
     run_bootloader(pmc->codename);
 
-    psp_dirty_create_mp2_ram(&s->smn, pmc->codename);
+    psp_dirty_create_mp2_ram(s->smn, pmc->codename);
 }
 
 static void psp_machine_class_init(ObjectClass *oc, void *data)

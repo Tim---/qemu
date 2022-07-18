@@ -1,6 +1,7 @@
 config ZEN
     bool
     select CCP
+    select UNIMP
 
 config CCP
     bool
