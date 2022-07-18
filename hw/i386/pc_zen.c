@@ -6,6 +6,9 @@
 #include "sysemu/block-backend.h"
 #include "exec/address-spaces.h"
 #include "sysemu/reset.h"
+#include "qapi/error.h"
+#include "hw/sysbus.h"
+#include "hw/zen/zen-mobo.h"
 
 struct PcZenMachineClass {
     X86MachineClass parent;
@@ -15,6 +18,10 @@ struct PcZenMachineState {
     X86MachineState parent;
     uint32_t seg_base;
     zen_codename codename;
+
+    DeviceState *mobo;
+    MemoryRegion *smn;
+    MemoryRegion *ht;
 };
 
 #define TYPE_PC_ZEN_MACHINE   MACHINE_TYPE_NAME("pc-zen")
@@ -72,6 +79,15 @@ static zen_codename pc_zen_get_codename(MachineState *machine)
     return zen_get_codename(name);
 }
 
+static void create_mobo(PcZenMachineState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    s->mobo = dev;
+    s->ht = zen_mobo_get_ht(dev);
+    s->smn = zen_mobo_get_smn(dev);
+}
+
 static void pc_zen_machine_state_init(MachineState *machine)
 {
     X86MachineState *x86ms = X86_MACHINE(machine);
@@ -79,9 +95,12 @@ static void pc_zen_machine_state_init(MachineState *machine)
 
     mms->codename = pc_zen_get_codename(machine);
 
+    create_mobo(mms);
+
     x86_cpus_init(x86ms, CPU_VERSION_LATEST);
 
-    memory_region_add_subregion(get_system_memory(), 0, machine->ram);
+    memory_region_add_subregion(get_system_memory(), 0, mms->ht);
+    memory_region_add_subregion(mms->ht, 0, machine->ram);
 
     pc_zen_simulate_psp_boot(mms);
 }
