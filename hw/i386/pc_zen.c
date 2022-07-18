@@ -9,6 +9,8 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/zen/zen-mobo.h"
+#include "hw/zen/zen-utils.h"
+#include "hw/zen/fch-lpc-bridge.h"
 
 struct PcZenMachineClass {
     X86MachineClass parent;
@@ -88,6 +90,23 @@ static void create_mobo(PcZenMachineState *s)
     s->smn = zen_mobo_get_smn(dev);
 }
 
+static MemoryRegion *create_pcie_mmconfig(PcZenMachineState *s)
+{
+    MemoryRegion *pcie_mmconfig = g_malloc(sizeof(*pcie_mmconfig));
+    create_region_with_unimpl(pcie_mmconfig, OBJECT(s), "pcie-mmconfig", 0x4000000);
+    memory_region_add_subregion(s->ht, 0xf0000000UL, pcie_mmconfig);
+    return pcie_mmconfig;
+}
+
+static DeviceState *create_fch_lpc_bridge(MemoryRegion *pcie_mmconfig)
+{
+    DeviceState *dev = qdev_new(TYPE_FCH_LPC_BRIDGE);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    MemoryRegion *mmio = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    memory_region_add_subregion(pcie_mmconfig, 0xa3000, mmio);
+    return dev;
+}
+
 static void pc_zen_machine_state_init(MachineState *machine)
 {
     X86MachineState *x86ms = X86_MACHINE(machine);
@@ -103,6 +122,9 @@ static void pc_zen_machine_state_init(MachineState *machine)
     memory_region_add_subregion(mms->ht, 0, machine->ram);
 
     pc_zen_simulate_psp_boot(mms);
+
+    MemoryRegion *pcie_mmconfig = create_pcie_mmconfig(mms);
+    create_fch_lpc_bridge(pcie_mmconfig);
 }
 
 static void pc_zen_machine_initfn(Object *obj)
