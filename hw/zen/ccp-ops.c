@@ -415,7 +415,7 @@ int ccp_op_aes(CcpState *s, struct ccp5_desc * desc)
     /* First, some assertions */
 
     /* Flags */
-    assert(desc->dw0.prot == 0);
+    NOASSERT(desc->dw0.prot);
 
     /* Engine / function */
     assert(desc->dw0.engine == CCP_ENGINE_AES);
@@ -726,7 +726,7 @@ int ccp_op_sha(CcpState *s, struct ccp5_desc * desc)
     /* Flags */
     NOASSERT(desc->dw0.init);
     NOASSERT(desc->dw0.eom);
-    assert(desc->dw0.prot == 0);
+    NOASSERT(desc->dw0.prot);
 
     /* Engine / function */
     assert(desc->dw0.engine == CCP_ENGINE_SHA);
