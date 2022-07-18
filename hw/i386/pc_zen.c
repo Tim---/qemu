@@ -31,9 +31,9 @@ static void pc_zen_simulate_psp_boot(PcZenMachineState *mms)
     zen_rom_infos_t infos;
     assert(zen_rom_init(&infos, blk, mms->codename));
 
-    uint32_t bin_offset;
+    uint64_t bin_offset;
     uint32_t bin_size;
-    uint32_t bin_dest;
+    uint64_t bin_dest;
     assert(zen_rom_get_bios_entry(&infos, AMD_BIOS_BIN, &bin_offset, &bin_size, &bin_dest));
 
     g_autofree void *buf = g_malloc(bin_size);
