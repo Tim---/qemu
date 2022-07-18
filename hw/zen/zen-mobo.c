@@ -1,5 +1,7 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "hw/char/serial.h"
+#include "sysemu/sysemu.h"
 #include "hw/zen/zen-mobo.h"
 #include "hw/zen/zen-utils.h"
 
@@ -74,6 +76,11 @@ void zen_mobo_ht_map(DeviceState *dev, SysBusDevice *sbd, int n, hwaddr addr, bo
     generic_map(zen_mobo_get_ht(dev), sbd, n, addr, alias);
 }
 
+static void zen_mobo_create_serial(ZenMoboState *s)
+{
+    serial_mm_init(&s->ht_io, 0x3f8, 0, NULL, 9600, serial_hd(0), DEVICE_NATIVE_ENDIAN);
+}
+
 static void zen_mobo_init(Object *obj)
 {
 }
@@ -83,6 +90,8 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     ZenMoboState *s = ZEN_MOBO(dev);
     create_smn(s);
     create_ht(s);
+
+    zen_mobo_create_serial(s);
 }
 
 static void zen_mobo_class_init(ObjectClass *oc, void *data)
