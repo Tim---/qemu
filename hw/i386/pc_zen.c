@@ -107,6 +107,20 @@ static DeviceState *create_fch_lpc_bridge(MemoryRegion *pcie_mmconfig)
     return dev;
 }
 
+static void map_ht_to_cpu(MachineState *machine)
+{
+    PcZenMachineState *mms = PC_ZEN_MACHINE(machine);
+
+    memory_region_add_subregion(get_system_memory(), 0, mms->ht);
+    memory_region_add_subregion(mms->ht, 0, machine->ram);
+
+    MemoryRegion *io = g_malloc(sizeof(*io));
+    memory_region_init(io, OBJECT(machine), "io", 0x10000);
+    memory_region_init_alias(io, OBJECT(machine), "io", mms->ht, 0xfffdfc000000, 0x10000);
+    memory_region_add_subregion(get_system_io(), 0, io);
+
+}
+
 static void pc_zen_machine_state_init(MachineState *machine)
 {
     X86MachineState *x86ms = X86_MACHINE(machine);
@@ -118,8 +132,7 @@ static void pc_zen_machine_state_init(MachineState *machine)
 
     x86_cpus_init(x86ms, CPU_VERSION_LATEST);
 
-    memory_region_add_subregion(get_system_memory(), 0, mms->ht);
-    memory_region_add_subregion(mms->ht, 0, machine->ram);
+    map_ht_to_cpu(machine);
 
     pc_zen_simulate_psp_boot(mms);
 
