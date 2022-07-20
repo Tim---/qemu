@@ -3,6 +3,8 @@
 #include "qemu/log.h"
 #include "hw/zen/fch-spi.h"
 
+#define REGS_SIZE 0x1000
+
 OBJECT_DECLARE_SIMPLE_TYPE(FchSpiState, FCH_SPI)
 
 struct FchSpiState {
@@ -11,22 +13,25 @@ struct FchSpiState {
 
     /*< public >*/
     MemoryRegion regs_region;
+    uint8_t storage[REGS_SIZE];
 };
 
 
 static uint64_t fch_spi_io_read(void *opaque, hwaddr addr, unsigned size)
 {
+    FchSpiState *s = FCH_SPI(opaque);
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx, size 0x%x)\n", __func__, addr, size);
-    return 0;
+    return ldn_le_p(s->storage + addr, size);
 }
 
 static void fch_spi_io_write(void *opaque, hwaddr addr,
                                     uint64_t value, unsigned size)
 {
+    FchSpiState *s = FCH_SPI(opaque);
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
                 "(offset 0x%lx, size 0x%x, value 0x%lx)\n", __func__, addr, size, value);
-
+    stn_le_p(s->storage + addr, size, value);
 }
 
 static const MemoryRegionOps fch_spi_io_ops = {
@@ -46,8 +51,7 @@ static void fch_spi_realize(DeviceState *dev, Error **errp)
 
     /* Init the registers access */
     memory_region_init_io(&s->regs_region, OBJECT(s), &fch_spi_io_ops, s,
-                          "fch-spi-regs",
-                          0x1000);
+                          "fch-spi-regs", REGS_SIZE);
     sysbus_init_mmio(sbd, &s->regs_region);
 }
 
