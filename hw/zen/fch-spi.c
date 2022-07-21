@@ -19,6 +19,7 @@ struct FchSpiState {
 
     /*< public >*/
     MemoryRegion regs_region;
+    MemoryRegion direct_access;
     uint8_t storage[REGS_SIZE];
     SSIBus *spi;
 
@@ -195,6 +196,42 @@ static const MemoryRegionOps fch_spi_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static uint64_t fch_spi_da_read(void *opaque, hwaddr offset, unsigned size)
+{
+    FchSpiState *s = FCH_SPI(opaque);
+
+    qemu_irq_lower(s->cs[0]);
+
+    ssi_transfer(s->spi, 0x03);
+    ssi_transfer(s->spi, extract32(offset, 16, 8));
+    ssi_transfer(s->spi, extract32(offset,  8, 8));
+    ssi_transfer(s->spi, extract32(offset,  0, 8));
+
+    uint64_t res = 0;
+
+    for(int i = 0; i < size; i++) {
+        res = deposit64(res, 8 * i, 8, ssi_transfer(s->spi, 0));
+    }
+
+    qemu_irq_raise(s->cs[0]);
+
+    return res;
+}
+
+static void fch_spi_da_write(void *opaque, hwaddr offset,
+                          uint64_t data, unsigned size)
+{
+    g_assert_not_reached();
+}
+
+const MemoryRegionOps fch_spi_da_ops = {
+    .read = fch_spi_da_read,
+    .write = fch_spi_da_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 8,
+    .valid.unaligned = true,
+};
+
 static void fch_spi_init(Object *obj)
 {
 }
@@ -208,6 +245,10 @@ static void fch_spi_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->regs_region, OBJECT(s), &fch_spi_io_ops, s,
                           "fch-spi-regs", REGS_SIZE);
     sysbus_init_mmio(sbd, &s->regs_region);
+
+    memory_region_init_io(&s->direct_access, OBJECT(s), &fch_spi_da_ops, s,
+                          "fch-spi-direct-access", 0x01000000);
+    sysbus_init_mmio(sbd, &s->direct_access);
 
     s->spi = ssi_create_bus(DEVICE(s), "spi");
     sysbus_init_irq(sbd, &s->cs[0]);

@@ -65,6 +65,7 @@ static DeviceState* create_fch_spi(PspMachineState *s)
     DeviceState *dev = qdev_new(TYPE_FCH_SPI);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x02dc4000, false);
+    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 1, 0x0a000000, false);
     return dev;
 }
 
