@@ -14,6 +14,7 @@
 #include "hw/zen/fch.h"
 #include "hw/zen/fch-spi.h"
 #include "hw/zen/zen-mobo.h"
+#include "hw/ssi/ssi.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -44,14 +45,8 @@ static void create_soc(PspMachineState *s, const char *cpu_type, zen_codename co
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 }
 
-static void run_bootloader(zen_codename codename)
+static void run_bootloader(BlockBackend *blk, zen_codename codename)
 {
-    // Simulate on-chip bootloader
-    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
-    assert(dinfo);
-    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
-    assert(blk);
-
     AddressSpace *as = cpu_get_address_space(first_cpu, ARMASIdx_S);
     psp_on_chip_bootloader(as, blk, codename);
 }
@@ -65,11 +60,30 @@ static void create_fch(PspMachineState *s)
     zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x02d01000, true);
 }
 
-static void create_fch_spi(PspMachineState *s)
+static DeviceState* create_fch_spi(PspMachineState *s)
 {
     DeviceState *dev = qdev_new(TYPE_FCH_SPI);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x02dc4000, false);
+    return dev;
+}
+
+static void create_spi_rom(DeviceState *fch_spi, BlockBackend *blk)
+{
+    const char *flash_type;
+
+    switch(blk_getlength(blk)) {
+    case 0x1000000:
+        flash_type = "mx25l12805d";
+        break;
+    case 0x2000000:
+        flash_type = "mx25l25655e";
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    fch_spi_add_flash(fch_spi, blk, flash_type);
 }
 
 static void create_mobo(PspMachineState *s)
@@ -86,14 +100,21 @@ static void psp_machine_init(MachineState *machine)
     PspMachineClass *pmc = PSP_MACHINE_GET_CLASS(machine);
     PspMachineState *s = PSP_MACHINE(machine);
 
+    // Simulate on-chip bootloader
+    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
+    assert(dinfo);
+    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
+    assert(blk);
+
     create_mobo(s);
 
     create_soc(s, machine->cpu_type, pmc->codename);
 
     create_fch(s);
-    create_fch_spi(s);
+    DeviceState *fch_spi = create_fch_spi(s);
+    create_spi_rom(fch_spi, blk);
 
-    run_bootloader(pmc->codename);
+    run_bootloader(blk, pmc->codename);
 
     psp_dirty_create_mp2_ram(s->smn, pmc->codename);
 }
