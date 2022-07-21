@@ -59,9 +59,6 @@ void psp_on_chip_bootloader(AddressSpace *as, BlockBackend *blk, zen_codename co
 
     address_space_write(as, 0, MEMTXATTRS_UNSPECIFIED, buf, bl_size);
 
-    // TODO: temporary
-    monitor_remove_blk(blk);
-
     cpu_set_pc(first_cpu, 0x100);
 
     psp_create_config(as, codename);

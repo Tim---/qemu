@@ -1,7 +1,12 @@
+config FCH
+    bool
+    select SSI
+
 config ZEN
     bool
     select CCP
     select UNIMP
+    select FCH
 
 config CCP
     bool
