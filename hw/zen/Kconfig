@@ -7,6 +7,7 @@ config ZEN
     select CCP
     select UNIMP
     select FCH
+    select ISA_BUS
 
 config CCP
     bool

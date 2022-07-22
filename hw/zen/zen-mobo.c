@@ -6,6 +6,7 @@
 #include "hw/zen/zen-utils.h"
 #include "qapi/error.h"
 #include "hw/zen/fch.h"
+#include "hw/isa/isa.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -16,6 +17,8 @@ struct ZenMoboState {
     MemoryRegion ht;
     MemoryRegion ht_io;
     MemoryRegion ht_mmconfig;
+
+    ISABus *isa_bus;
 };
 
 static void create_smn(ZenMoboState *s)
@@ -86,6 +89,11 @@ static void create_fch(DeviceState *s)
     zen_mobo_smn_map(s, SYS_BUS_DEVICE(dev), 0, 0x02d01000, true);
 }
 
+static void create_isa(ZenMoboState *s)
+{
+    s->isa_bus = isa_bus_new(DEVICE(s), &s->ht, &s->ht_io, &error_fatal);
+}
+
 static void zen_mobo_init(Object *obj)
 {
 }
@@ -98,6 +106,7 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
 
     zen_mobo_create_serial(s);
     create_fch(DEVICE(s));
+    create_isa(s);
 }
 
 static void zen_mobo_class_init(ObjectClass *oc, void *data)
