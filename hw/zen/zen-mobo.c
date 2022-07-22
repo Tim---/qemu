@@ -6,7 +6,9 @@
 #include "hw/zen/zen-utils.h"
 #include "qapi/error.h"
 #include "hw/zen/fch.h"
+#include "hw/zen/zen-pci-root.h"
 #include "hw/isa/isa.h"
+#include "hw/pci/pci_host.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -19,6 +21,7 @@ struct ZenMoboState {
     MemoryRegion ht_mmconfig;
 
     ISABus *isa_bus;
+    PCIBus *pci_bus;
 };
 
 static void create_smn(ZenMoboState *s)
@@ -100,6 +103,15 @@ static void create_isa(ZenMoboState *s)
     s->isa_bus = isa_bus_new(DEVICE(s), &s->ht, &s->ht_io, &error_fatal);
 }
 
+static void create_pcie(ZenMoboState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_ZEN_HOST);
+    /* TODO: this should map the IO ports, but doesn't on x86 because of aliases... */
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
+    s->pci_bus = phb->bus;
+}
+
 static void zen_mobo_init(Object *obj)
 {
 }
@@ -112,6 +124,7 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
 
     zen_mobo_create_serial(s);
     create_fch(DEVICE(s));
+    create_pcie(s);
     create_isa(s);
 }
 
