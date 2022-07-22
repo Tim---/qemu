@@ -18,7 +18,7 @@ static uint64_t fch_rtc_io_read(void *opaque, hwaddr addr, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx, size 0x%x)\n", __func__, addr, size);
-    return 0;
+    return 0xffffffff;
 }
 
 static void fch_rtc_io_write(void *opaque, hwaddr addr,
