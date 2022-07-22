@@ -25,6 +25,7 @@ struct PcZenMachineState {
     DeviceState *mobo;
     MemoryRegion *smn;
     MemoryRegion *ht;
+    ISABus *isa;
 };
 
 #define TYPE_PC_ZEN_MACHINE   MACHINE_TYPE_NAME("pc-zen")
@@ -89,6 +90,7 @@ static void create_mobo(PcZenMachineState *s)
     s->mobo = dev;
     s->ht = zen_mobo_get_ht(dev);
     s->smn = zen_mobo_get_smn(dev);
+    s->isa = zen_mobo_get_isa(dev);
 }
 
 static MemoryRegion *create_pcie_mmconfig(PcZenMachineState *s)
@@ -108,13 +110,10 @@ static DeviceState *create_fch_lpc_bridge(MemoryRegion *pcie_mmconfig)
     return dev;
 }
 
-static DeviceState *create_zen_rtc(PcZenMachineState *s)
+static void create_zen_rtc(PcZenMachineState *s)
 {
-    DeviceState *dev = qdev_new(TYPE_FCH_RTC);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    MemoryRegion *mmio = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
-    memory_region_add_subregion(s->ht, 0xfffdfc000070, mmio);
-    return dev;
+    ISADevice *isadev = isa_new(TYPE_FCH_RTC);
+    isa_realize_and_unref(isadev, s->isa, &error_fatal);
 }
 
 static void map_ht_to_cpu(MachineState *machine)
