@@ -2,6 +2,7 @@
 #include "hw/sysbus.h"
 #include "qemu/log.h"
 #include "hw/registerfields.h"
+#include "hw/acpi/acpi.h"
 #include "hw/zen/fch.h"
 
 #define PM   0x0300
@@ -27,7 +28,9 @@ struct FchState {
 
     /*< public >*/
     MemoryRegion regs_region;
+    MemoryRegion acpi_region;
     uint8_t storage[TOTAL_SIZE];
+    ACPIREGS acpi_regs;
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(FchState, FCH)
@@ -79,6 +82,21 @@ static void fch_initialize_registers(FchState *s)
     stb_p(s->storage + A_DevD3State_eSPI, espi_aoac);
 }
 
+static void fch_acpi_pm_update_sci_fn(ACPIREGS *regs)
+{
+}
+
+static void create_acpi_region(FchState *s)
+{
+    memory_region_init(&s->acpi_region, OBJECT(s), "fch-acpi", 0x0100);
+
+    acpi_pm_tmr_init(&s->acpi_regs, fch_acpi_pm_update_sci_fn, &s->acpi_region);
+    acpi_pm1_evt_init(&s->acpi_regs, fch_acpi_pm_update_sci_fn, &s->acpi_region);
+    acpi_pm1_cnt_init(&s->acpi_regs, &s->acpi_region, false, false, 2, false);
+
+    memory_region_add_subregion(&s->regs_region, 0x0800, &s->acpi_region);
+}
+
 static void fch_realize(DeviceState *dev, Error **errp)
 {
     FchState *s = FCH(dev);
@@ -90,6 +108,7 @@ static void fch_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->regs_region);
 
     fch_initialize_registers(s);
+    create_acpi_region(s);
 }
 
 static void fch_class_init(ObjectClass *oc, void *data)
