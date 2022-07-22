@@ -4,6 +4,8 @@
 #include "sysemu/sysemu.h"
 #include "hw/zen/zen-mobo.h"
 #include "hw/zen/zen-utils.h"
+#include "qapi/error.h"
+#include "hw/zen/fch.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -75,6 +77,15 @@ static void zen_mobo_create_serial(ZenMoboState *s)
     serial_mm_init(&s->ht_io, 0x3f8, 0, NULL, 9600, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 }
 
+static void create_fch(DeviceState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_FCH);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    zen_mobo_ht_map(s, SYS_BUS_DEVICE(dev), 0, 0xfed80000, false);
+    zen_mobo_smn_map(s, SYS_BUS_DEVICE(dev), 0, 0x02d01000, true);
+}
+
 static void zen_mobo_init(Object *obj)
 {
 }
@@ -86,6 +97,7 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     create_ht(s);
 
     zen_mobo_create_serial(s);
+    create_fch(DEVICE(s));
 }
 
 static void zen_mobo_class_init(ObjectClass *oc, void *data)

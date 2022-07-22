@@ -11,7 +11,6 @@
 #include "hw/zen/psp-dirty.h"
 #include "hw/zen/psp-soc.h"
 #include "hw/zen/zen-utils.h"
-#include "hw/zen/fch.h"
 #include "hw/zen/fch-spi.h"
 #include "hw/zen/zen-mobo.h"
 #include "hw/ssi/ssi.h"
@@ -49,15 +48,6 @@ static void run_bootloader(BlockBackend *blk, zen_codename codename)
 {
     AddressSpace *as = cpu_get_address_space(first_cpu, ARMASIdx_S);
     psp_on_chip_bootloader(as, blk, codename);
-}
-
-static void create_fch(PspMachineState *s)
-{
-    DeviceState *dev = qdev_new(TYPE_FCH);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-
-    zen_mobo_ht_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0xfed80000, false);
-    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x02d01000, true);
 }
 
 static DeviceState* create_fch_spi(PspMachineState *s)
@@ -111,7 +101,6 @@ static void psp_machine_init(MachineState *machine)
 
     create_soc(s, machine->cpu_type, pmc->codename);
 
-    create_fch(s);
     DeviceState *fch_spi = create_fch_spi(s);
     create_spi_rom(fch_spi, blk);
 
