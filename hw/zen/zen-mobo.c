@@ -9,6 +9,7 @@
 #include "hw/zen/zen-pci-root.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci_host.h"
+#include "exec/address-spaces.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -32,7 +33,8 @@ static void create_smn(ZenMoboState *s)
 static void create_ht(ZenMoboState *s)
 {
     create_region_with_unimpl(&s->ht, OBJECT(s), "ht", 0x1000000000000ULL);
-    create_region_with_unimpl(&s->ht_io, OBJECT(s), "ht-io", 0x2000000ULL);
+    memory_region_init_alias(&s->ht_io, OBJECT(s), "ht-io", get_system_io(), 0, 0x10000);
+    create_unimplemented_device_generic(get_system_io(), "ht-io-unimpl", 0, 0x10000);
     memory_region_add_subregion(&s->ht, 0xfffdfc000000, &s->ht_io);
     create_region_with_unimpl(&s->ht_mmconfig, OBJECT(s), "ht-mmconfig", 0x20000000ULL);
     memory_region_add_subregion(&s->ht, 0xfffe00000000, &s->ht_mmconfig);
@@ -86,7 +88,7 @@ void zen_mobo_ht_map(DeviceState *dev, SysBusDevice *sbd, int n, hwaddr addr, bo
 
 static void zen_mobo_create_serial(ZenMoboState *s)
 {
-    serial_mm_init(&s->ht_io, 0x3f8, 0, NULL, 9600, serial_hd(0), DEVICE_NATIVE_ENDIAN);
+    serial_mm_init(get_system_io(), 0x3f8, 0, NULL, 9600, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 }
 
 static void create_fch(DeviceState *s)
@@ -100,13 +102,12 @@ static void create_fch(DeviceState *s)
 
 static void create_isa(ZenMoboState *s)
 {
-    s->isa_bus = isa_bus_new(DEVICE(s), &s->ht, &s->ht_io, &error_fatal);
+    s->isa_bus = isa_bus_new(DEVICE(s), &s->ht, get_system_io(), &error_fatal);
 }
 
 static void create_pcie(ZenMoboState *s)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_HOST);
-    /* TODO: this should map the IO ports, but doesn't on x86 because of aliases... */
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     s->pci_bus = phb->bus;
