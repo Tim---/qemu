@@ -47,6 +47,12 @@ MemoryRegion *zen_mobo_get_smn(DeviceState *dev)
     return &s->smn;
 }
 
+ISABus *zen_mobo_get_isa(DeviceState *dev)
+{
+    ZenMoboState *s = ZEN_MOBO(dev);
+    return s->isa_bus;
+}
+
 static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
 {
     MemoryRegion *region = sysbus_mmio_get_region(sbd, n);
