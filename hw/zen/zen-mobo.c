@@ -9,6 +9,7 @@
 #include "hw/zen/zen-pci-root.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci_host.h"
+#include "hw/pci/pcie_host.h"
 #include "exec/address-spaces.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
@@ -56,6 +57,12 @@ ISABus *zen_mobo_get_isa(DeviceState *dev)
 {
     ZenMoboState *s = ZEN_MOBO(dev);
     return s->isa_bus;
+}
+
+PCIBus *zen_mobo_get_pci(DeviceState *dev)
+{
+    ZenMoboState *s = ZEN_MOBO(dev);
+    return s->pci_bus;
 }
 
 static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
@@ -109,6 +116,8 @@ static void create_pcie(ZenMoboState *s)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_HOST);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    /* TODO: trace the unimplemented R/W */
+    pcie_host_mmcfg_map(PCIE_HOST_BRIDGE(dev), 0xf0000000, 0x4000000);
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     s->pci_bus = phb->bus;
 }
