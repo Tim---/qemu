@@ -38,6 +38,15 @@ REG32(SPI_CNTRL1,       0x0C)
     FIELD(SPI_CNTRL1, SPI_PARAMETERS,            0, 8)
 REG8(SPI_EXT_REG_INDX,  0x1E)
 REG8(SPI_EXT_REG_DATA,  0x1F)
+REG8(SPI_CMD_CODE,      0x45)
+REG8(SPI_CMD_TRIGGER,   0x47)
+    FIELD(SPI_CMD_TRIGGER, EXECUTE,              7, 1)
+REG8(SPI_TX_BYTE_COUNT, 0x48)
+REG8(SPI_RX_BYTE_COUNT, 0x4B)
+REG32(SPI_STATUS,       0x4C)
+    FIELD(SPI_STATUS, FIFO_WR_PTR,               8, 6)
+    FIELD(SPI_STATUS, FIFO_RD_PTR,              16, 6)
+#define SPI_FIFO_SIZE 70
 REG8(SPI_FIFO,          0x80)
 
 static inline uint8_t get_reg8(FchSpiState *s, hwaddr offset)
@@ -90,12 +99,52 @@ static void fch_spi_ext_write(FchSpiState *s)
 
     switch(ext_indx) {
     case EXT_TX_BYTE_COUNT:
-        s->tx_byte_count = ext_data;
+        set_reg8(s, A_SPI_TX_BYTE_COUNT, ext_data);
         break;
     case EXT_RX_BYTE_COUNT:
-        s->rx_byte_count = ext_data;
+        set_reg8(s, A_SPI_RX_BYTE_COUNT, ext_data);
         break;
     }
+}
+
+static void fch_spi_execute2(FchSpiState *s)
+{
+    uint8_t cmd_code = get_reg8(s, A_SPI_CMD_CODE);
+    uint8_t cmd_trigger = get_reg8(s, A_SPI_CMD_TRIGGER);
+    uint8_t rx_count = get_reg8(s, A_SPI_RX_BYTE_COUNT);
+    uint8_t tx_count = get_reg8(s, A_SPI_TX_BYTE_COUNT);
+    uint8_t status = get_reg32(s, A_SPI_STATUS);
+    uint8_t *fifo = s->storage + A_SPI_FIFO;
+
+    if(FIELD_EX8(cmd_trigger, SPI_CMD_TRIGGER, EXECUTE) == 0)
+        return;
+    cmd_trigger = FIELD_DP8(cmd_trigger, SPI_CMD_TRIGGER, EXECUTE, 0);
+    set_reg8(s, A_SPI_CMD_TRIGGER, cmd_trigger);
+
+    qemu_irq_lower(s->cs[0]);
+
+    ssi_transfer(s->spi, cmd_code);
+
+    int fifo_wr_ptr = FIELD_EX32(status, SPI_STATUS, FIFO_WR_PTR);
+    int fifo_rd_ptr = FIELD_EX32(status, SPI_STATUS, FIFO_RD_PTR);
+
+    for(int i = 0; i < tx_count; i++) {
+        ssi_transfer(s->spi, fifo[fifo_wr_ptr]);
+        fifo_wr_ptr = (fifo_wr_ptr + 1) % SPI_FIFO_SIZE;
+    }
+
+    fifo_rd_ptr = fifo_wr_ptr;
+
+    for(int i = 0; i < rx_count; i++) {
+        fifo[fifo_rd_ptr] = ssi_transfer(s->spi, 0);
+        fifo_rd_ptr = (fifo_rd_ptr + 1) % SPI_FIFO_SIZE;
+    }
+
+    status = FIELD_DP32(status, SPI_STATUS, FIFO_WR_PTR, fifo_wr_ptr);
+    status = FIELD_DP32(status, SPI_STATUS, FIFO_RD_PTR, fifo_rd_ptr);
+    set_reg32(s, A_SPI_STATUS, status);
+
+    qemu_irq_raise(s->cs[0]);
 }
 
 static void fch_spi_execute(FchSpiState *s)
@@ -104,8 +153,8 @@ static void fch_spi_execute(FchSpiState *s)
     uint32_t cntrl1 = get_reg32(s, A_SPI_CNTRL1);
     uint8_t *fifo = s->storage + A_SPI_FIFO;
 
-    uint8_t tx_count = s->tx_byte_count;
-    uint8_t rx_count = s->rx_byte_count;
+    uint8_t rx_count = get_reg8(s, A_SPI_RX_BYTE_COUNT);
+    uint8_t tx_count = get_reg8(s, A_SPI_TX_BYTE_COUNT);
 
     // Clear the fifo pointer
     if(FIELD_EX32(cntrl0, SPI_CNTRL0, FIFO_PTR_CLR) == 1) {
@@ -187,6 +236,10 @@ static void fch_spi_io_write(void *opaque, hwaddr addr,
 
     if(ranges_overlap(addr, size, A_SPI_CNTRL0, 4)) {
         fch_spi_execute(s);
+    }
+
+    if(range_covers_byte(addr, size, A_SPI_CMD_TRIGGER)) {
+        fch_spi_execute2(s);
     }
 }
 
