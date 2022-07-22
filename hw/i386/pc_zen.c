@@ -12,6 +12,7 @@
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/fch-lpc-bridge.h"
 #include "hw/zen/fch-rtc.h"
+#include "hw/pci/pci.h"
 
 struct PcZenMachineClass {
     X86MachineClass parent;
@@ -26,6 +27,7 @@ struct PcZenMachineState {
     MemoryRegion *smn;
     MemoryRegion *ht;
     ISABus *isa;
+    PCIBus *pci;
 };
 
 #define TYPE_PC_ZEN_MACHINE   MACHINE_TYPE_NAME("pc-zen")
@@ -91,23 +93,13 @@ static void create_mobo(PcZenMachineState *s)
     s->ht = zen_mobo_get_ht(dev);
     s->smn = zen_mobo_get_smn(dev);
     s->isa = zen_mobo_get_isa(dev);
+    s->pci = zen_mobo_get_pci(dev);
 }
 
-static MemoryRegion *create_pcie_mmconfig(PcZenMachineState *s)
+static void create_fch_lpc_bridge(PcZenMachineState *s)
 {
-    MemoryRegion *pcie_mmconfig = g_malloc(sizeof(*pcie_mmconfig));
-    create_region_with_unimpl(pcie_mmconfig, OBJECT(s), "pcie-mmconfig", 0x4000000);
-    memory_region_add_subregion(s->ht, 0xf0000000UL, pcie_mmconfig);
-    return pcie_mmconfig;
-}
-
-static DeviceState *create_fch_lpc_bridge(MemoryRegion *pcie_mmconfig)
-{
-    DeviceState *dev = qdev_new(TYPE_FCH_LPC_BRIDGE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    MemoryRegion *mmio = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
-    memory_region_add_subregion(pcie_mmconfig, 0xa3000, mmio);
-    return dev;
+    pci_create_simple_multifunction(s->pci, PCI_DEVFN(0x14, 0x3),
+                                    true, TYPE_FCH_LPC_BRIDGE);
 }
 
 static void create_zen_rtc(PcZenMachineState *s)
@@ -139,8 +131,7 @@ static void pc_zen_machine_state_init(MachineState *machine)
 
     pc_zen_simulate_psp_boot(mms);
 
-    MemoryRegion *pcie_mmconfig = create_pcie_mmconfig(mms);
-    create_fch_lpc_bridge(pcie_mmconfig);
+    create_fch_lpc_bridge(mms);
     create_zen_rtc(mms);
 }
 
