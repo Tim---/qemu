@@ -11,6 +11,7 @@
 #include "hw/zen/zen-mobo.h"
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/fch-lpc-bridge.h"
+#include "hw/zen/fch-rtc.h"
 
 struct PcZenMachineClass {
     X86MachineClass parent;
@@ -107,6 +108,15 @@ static DeviceState *create_fch_lpc_bridge(MemoryRegion *pcie_mmconfig)
     return dev;
 }
 
+static DeviceState *create_zen_rtc(PcZenMachineState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_FCH_RTC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    MemoryRegion *mmio = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    memory_region_add_subregion(s->ht, 0xfffdfc000070, mmio);
+    return dev;
+}
+
 static void map_ht_to_cpu(MachineState *machine)
 {
     PcZenMachineState *mms = PC_ZEN_MACHINE(machine);
@@ -118,7 +128,6 @@ static void map_ht_to_cpu(MachineState *machine)
     memory_region_init(io, OBJECT(machine), "io", 0x10000);
     memory_region_init_alias(io, OBJECT(machine), "io", mms->ht, 0xfffdfc000000, 0x10000);
     memory_region_add_subregion(get_system_io(), 0, io);
-
 }
 
 static void pc_zen_machine_state_init(MachineState *machine)
@@ -138,6 +147,7 @@ static void pc_zen_machine_state_init(MachineState *machine)
 
     MemoryRegion *pcie_mmconfig = create_pcie_mmconfig(mms);
     create_fch_lpc_bridge(pcie_mmconfig);
+    create_zen_rtc(mms);
 }
 
 static void pc_zen_machine_initfn(Object *obj)
