@@ -13,6 +13,7 @@ struct ZenMoboState {
     MemoryRegion smn;
     MemoryRegion ht;
     MemoryRegion ht_io;
+    MemoryRegion ht_mmconfig;
 };
 
 static void create_smn(ZenMoboState *s)
@@ -23,8 +24,10 @@ static void create_smn(ZenMoboState *s)
 static void create_ht(ZenMoboState *s)
 {
     create_region_with_unimpl(&s->ht, OBJECT(s), "ht", 0x1000000000000ULL);
-    create_region_with_unimpl(&s->ht_io, OBJECT(s), "ht-io", 0x100000000ULL);
+    create_region_with_unimpl(&s->ht_io, OBJECT(s), "ht-io", 0x2000000ULL);
     memory_region_add_subregion(&s->ht, 0xfffdfc000000, &s->ht_io);
+    create_region_with_unimpl(&s->ht_mmconfig, OBJECT(s), "ht-mmconfig", 0x20000000ULL);
+    memory_region_add_subregion(&s->ht, 0xfffe00000000, &s->ht_mmconfig);
 }
 
 MemoryRegion *zen_mobo_get_ht(DeviceState *dev)
