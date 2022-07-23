@@ -18,7 +18,7 @@ struct ZenMoboState {
     SysBusDevice parent_obj;
 
     MemoryRegion smn;
-    MemoryRegion ht;
+    MemoryRegion *ht;
     MemoryRegion ht_io;
     MemoryRegion ht_mmconfig;
 
@@ -33,18 +33,21 @@ static void create_smn(ZenMoboState *s)
 
 static void create_ht(ZenMoboState *s)
 {
-    create_region_with_unimpl(&s->ht, OBJECT(s), "ht", 0x1000000000000ULL);
+    s->ht = get_system_memory();
+    create_unimplemented_device_generic(s->ht, "ht-unimpl", 0, 0x1000000000000ULL);
+
     memory_region_init_alias(&s->ht_io, OBJECT(s), "ht-io", get_system_io(), 0, 0x10000);
     create_unimplemented_device_generic(get_system_io(), "ht-io-unimpl", 0, 0x10000);
-    memory_region_add_subregion(&s->ht, 0xfffdfc000000, &s->ht_io);
+
+    memory_region_add_subregion(s->ht, 0xfffdfc000000, &s->ht_io);
     create_region_with_unimpl(&s->ht_mmconfig, OBJECT(s), "ht-mmconfig", 0x20000000ULL);
-    memory_region_add_subregion(&s->ht, 0xfffe00000000, &s->ht_mmconfig);
+    memory_region_add_subregion(s->ht, 0xfffe00000000, &s->ht_mmconfig);
 }
 
 MemoryRegion *zen_mobo_get_ht(DeviceState *dev)
 {
     ZenMoboState *s = ZEN_MOBO(dev);
-    return &s->ht;
+    return s->ht;
 }
 
 MemoryRegion *zen_mobo_get_smn(DeviceState *dev)
@@ -109,7 +112,7 @@ static void create_fch(DeviceState *s)
 
 static void create_isa(ZenMoboState *s)
 {
-    s->isa_bus = isa_bus_new(DEVICE(s), &s->ht, get_system_io(), &error_fatal);
+    s->isa_bus = isa_bus_new(DEVICE(s), s->ht, get_system_io(), &error_fatal);
 }
 
 static void create_pcie(ZenMoboState *s)

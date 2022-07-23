@@ -112,7 +112,6 @@ static void map_ht_to_cpu(MachineState *machine)
 {
     PcZenMachineState *mms = PC_ZEN_MACHINE(machine);
 
-    memory_region_add_subregion(get_system_memory(), 0, mms->ht);
     memory_region_add_subregion(mms->ht, 0, machine->ram);
 }
 
