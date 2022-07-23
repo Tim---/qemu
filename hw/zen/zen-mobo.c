@@ -20,7 +20,7 @@ struct ZenMoboState {
     MemoryRegion smn;
     MemoryRegion *ht;
     MemoryRegion ht_io;
-    MemoryRegion ht_mmconfig;
+    MemoryRegion pcie_mmconfig_alias;
 
     ISABus *isa_bus;
     PCIBus *pci_bus;
@@ -40,8 +40,6 @@ static void create_ht(ZenMoboState *s)
     create_unimplemented_device_generic(get_system_io(), "ht-io-unimpl", 0, 0x10000);
 
     memory_region_add_subregion(s->ht, 0xfffdfc000000, &s->ht_io);
-    create_region_with_unimpl(&s->ht_mmconfig, OBJECT(s), "ht-mmconfig", 0x20000000ULL);
-    memory_region_add_subregion(s->ht, 0xfffe00000000, &s->ht_mmconfig);
 }
 
 MemoryRegion *zen_mobo_get_ht(DeviceState *dev)
@@ -119,8 +117,12 @@ static void create_pcie(ZenMoboState *s)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_HOST);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    /* TODO: trace the unimplemented R/W */
-    pcie_host_mmcfg_map(PCIE_HOST_BRIDGE(dev), 0xf0000000, 0x4000000);
+
+    pcie_host_mmcfg_map(PCIE_HOST_BRIDGE(dev), 0xfffe00000000, PCIE_MMCFG_SIZE_MAX);
+
+    memory_region_init_alias(&s->pcie_mmconfig_alias, OBJECT(s), "ht-mmconfig-alias", s->ht, 0xfffe00000000, 0x4000000);
+    memory_region_add_subregion(s->ht, 0xf0000000, &s->pcie_mmconfig_alias);
+
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     s->pci_bus = phb->bus;
 }
