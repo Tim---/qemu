@@ -23,6 +23,7 @@
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pcie_host.h"
 #include "qemu/module.h"
+#include "qemu/log.h"
 
 /* a helper function to get a PCIDevice for a given mmconfig address */
 static inline PCIDevice *pcie_dev_find_by_mmcfg_addr(PCIBus *s,
@@ -42,6 +43,10 @@ static void pcie_mmcfg_data_write(void *opaque, hwaddr mmcfg_addr,
     uint32_t limit;
 
     if (!pci_dev) {
+        uint8_t devfn = PCIE_MMCFG_DEVFN(mmcfg_addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
+                    "(D%xF%x, size 0x%x, value 0x%lx)\n", __func__,
+                    PCI_SLOT(devfn), PCI_FUNC(devfn), len, val);
         return;
     }
     addr = PCIE_MMCFG_CONFOFFSET(mmcfg_addr);
@@ -60,6 +65,10 @@ static uint64_t pcie_mmcfg_data_read(void *opaque,
     uint32_t limit;
 
     if (!pci_dev) {
+        uint8_t devfn = PCIE_MMCFG_DEVFN(mmcfg_addr);
+        qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
+                    "(D%xF%x, size 0x%x)\n", __func__,
+                    PCI_SLOT(devfn), PCI_FUNC(devfn), len);
         return ~0x0;
     }
     addr = PCIE_MMCFG_CONFOFFSET(mmcfg_addr);
