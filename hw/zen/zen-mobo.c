@@ -11,6 +11,8 @@
 #include "hw/pci/pci_host.h"
 #include "hw/pci/pcie_host.h"
 #include "exec/address-spaces.h"
+#include "hw/zen/fch-lpc-bridge.h"
+#include "hw/pci/pci.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -127,6 +129,12 @@ static void create_pcie(ZenMoboState *s)
     s->pci_bus = phb->bus;
 }
 
+static void create_fch_lpc_bridge(ZenMoboState *s)
+{
+    pci_create_simple_multifunction(s->pci_bus, PCI_DEVFN(0x14, 0x3),
+                                    true, TYPE_FCH_LPC_BRIDGE);
+}
+
 static void zen_mobo_init(Object *obj)
 {
 }
@@ -141,6 +149,7 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     create_fch(DEVICE(s));
     create_pcie(s);
     create_isa(s);
+    create_fch_lpc_bridge(s);
 }
 
 static void zen_mobo_class_init(ObjectClass *oc, void *data)

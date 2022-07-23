@@ -10,9 +10,7 @@
 #include "hw/sysbus.h"
 #include "hw/zen/zen-mobo.h"
 #include "hw/zen/zen-utils.h"
-#include "hw/zen/fch-lpc-bridge.h"
 #include "hw/zen/fch-rtc.h"
-#include "hw/pci/pci.h"
 
 struct PcZenMachineClass {
     X86MachineClass parent;
@@ -96,12 +94,6 @@ static void create_mobo(PcZenMachineState *s)
     s->pci = zen_mobo_get_pci(dev);
 }
 
-static void create_fch_lpc_bridge(PcZenMachineState *s)
-{
-    pci_create_simple_multifunction(s->pci, PCI_DEVFN(0x14, 0x3),
-                                    true, TYPE_FCH_LPC_BRIDGE);
-}
-
 static void create_zen_rtc(PcZenMachineState *s)
 {
     ISADevice *isadev = isa_new(TYPE_FCH_RTC);
@@ -130,7 +122,6 @@ static void pc_zen_machine_state_init(MachineState *machine)
 
     pc_zen_simulate_psp_boot(mms);
 
-    create_fch_lpc_bridge(mms);
     create_zen_rtc(mms);
 }
 
