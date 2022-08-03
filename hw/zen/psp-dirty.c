@@ -42,19 +42,7 @@ void psp_dirty_create_mp2_ram(MemoryRegion *smn, zen_codename codename)
 void psp_dirty_create_smu_firmware(MemoryRegion *smn, zen_codename codename)
 {
     MemoryRegion *ram;
-
-    switch(codename) {
-    case CODENAME_SUMMIT_RIDGE:
-    case CODENAME_PINNACLE_RIDGE:
-    case CODENAME_RAVEN_RIDGE:
-    case CODENAME_PICASSO:
-    case CODENAME_MATISSE:
-    case CODENAME_VERMEER:
-        ram = g_new(MemoryRegion, 1);
-        memory_region_init_ram(ram, NULL, "smu-fw", 0x40000, &error_fatal);
-        memory_region_add_subregion(smn, 0x3c00000, ram);
-        break;
-    default:
-        break;
-    }
+    ram = g_new(MemoryRegion, 1);
+    memory_region_init_ram(ram, NULL, "smu-fw", 0x40000, &error_fatal);
+    memory_region_add_subregion(smn, 0x3c00000, ram);
 }
