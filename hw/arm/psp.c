@@ -86,9 +86,12 @@ static void create_spi_rom(DeviceState *fch_spi, BlockBackend *blk)
     case 0x1000000:
         flash_type = "mx25l12805d";
         break;
+    /*
+    We don't know how to handle it properly for now
     case 0x2000000:
         flash_type = "mx25l25655e";
         break;
+    */
     default:
         g_assert_not_reached();
     }
