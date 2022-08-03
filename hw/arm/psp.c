@@ -129,6 +129,7 @@ static void psp_machine_init(MachineState *machine)
     run_bootloader(blk, pmc->codename);
 
     psp_dirty_create_mp2_ram(s->smn, pmc->codename);
+    psp_dirty_create_smu_firmware(s->smn, pmc->codename);
 }
 
 static void psp_machine_class_init(ObjectClass *oc, void *data)
