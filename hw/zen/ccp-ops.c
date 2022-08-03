@@ -873,8 +873,8 @@ int ccp_op_zlib(CcpState *s, struct ccp5_desc * desc)
     /* First, some assertions */
 
     /* Flags */
-    assert(desc->dw0.soc == 1);
-    assert(desc->dw0.ioc == 0);
+    NOASSERT(desc->dw0.soc);
+    NOASSERT(desc->dw0.ioc);
     assert(desc->dw0.init == 1);
     assert(desc->dw0.eom == 1);
     NOASSERT(desc->dw0.prot);
