@@ -146,12 +146,16 @@ PspRegisterLoc locs_matisse[] = {
     LOC(PRIVATE, 0x48, bootrom_revid),
     LOC(PRIVATE, 0x50, crypto_flags),
     LOC(PRIVATE, 0xd8, postcode),
+    LOC(PRIVATE, 0x1f0, ticks_low),
+    LOC(PRIVATE, 0x1f4, ticks_high),
     LOC_END
 };
 PspRegisterLoc locs_vermeer[] = {
     LOC(PRIVATE, 0x48, bootrom_revid),
     LOC(PRIVATE, 0x50, crypto_flags),
     LOC(PRIVATE, 0xd8, postcode),
+    LOC(PRIVATE, 0x1f0, ticks_low),
+    LOC(PRIVATE, 0x1f4, ticks_high),
     LOC_END
 };
 PspRegisterLoc locs_lucienne[] = {
