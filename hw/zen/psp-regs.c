@@ -77,6 +77,23 @@ PspRegister reg_bootrom_revid = {
     .read = reg_bootrom_revid_read,
 };
 
+static uint32_t reg_crypto_flags_read(PspRegsState *s)
+{
+    uint32_t res = 0;
+    /*
+    Bits 8 and 9 allow the use of RSA-4096 keys.
+    They must have the same value.
+    */
+    res |= 1 << 8;
+    res |= 1 << 9;
+    return res;
+}
+
+PspRegister reg_crypto_flags = {
+    .name = "crypto_flags",
+    .read = reg_crypto_flags_read,
+};
+
 /* Location definitions */
 
 #define LOC(type, offset, register) {REG_TYPE_ ## type, offset, &reg_ ## register}
@@ -106,11 +123,13 @@ PspRegisterLoc locs_picasso[] = {
 
 PspRegisterLoc locs_matisse[] = {
     LOC(PRIVATE, 0x48, bootrom_revid),
+    LOC(PRIVATE, 0x50, crypto_flags),
     LOC(PRIVATE, 0xd8, postcode),
     LOC_END
 };
 PspRegisterLoc locs_vermeer[] = {
     LOC(PRIVATE, 0x48, bootrom_revid),
+    LOC(PRIVATE, 0x50, crypto_flags),
     LOC(PRIVATE, 0xd8, postcode),
     LOC_END
 };
