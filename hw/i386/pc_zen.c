@@ -11,6 +11,7 @@
 #include "hw/zen/zen-mobo.h"
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/fch-rtc.h"
+#include "hw/qdev-properties.h"
 
 struct PcZenMachineClass {
     X86MachineClass parent;
@@ -31,14 +32,9 @@ struct PcZenMachineState {
 #define TYPE_PC_ZEN_MACHINE   MACHINE_TYPE_NAME("pc-zen")
 OBJECT_DECLARE_TYPE(PcZenMachineState, PcZenMachineClass, PC_ZEN_MACHINE)
 
-static void pc_zen_simulate_psp_boot(PcZenMachineState *mms)
+static void pc_zen_simulate_psp_boot(PcZenMachineState *mms, BlockBackend *blk)
 {
     // Simulate PSP bootloader
-    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
-    assert(dinfo);
-    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
-    assert(blk);
-
     zen_rom_infos_t infos;
     assert(zen_rom_init(&infos, blk, mms->codename));
 
@@ -52,9 +48,6 @@ static void pc_zen_simulate_psp_boot(PcZenMachineState *mms)
     address_space_write(&address_space_memory, bin_dest, MEMTXATTRS_UNSPECIFIED, buf, bin_size);
 
     mms->seg_base = bin_dest + bin_size - 0x10000;
-
-    // TODO: temporary
-    monitor_remove_blk(blk);
 }
 
 static void pc_zen_machine_reset(MachineState *machine)
@@ -83,10 +76,9 @@ static zen_codename pc_zen_get_codename(MachineState *machine)
     return zen_get_codename(name);
 }
 
-static void create_mobo(PcZenMachineState *s)
+static void create_mobo(PcZenMachineState *s, BlockBackend *blk)
 {
-    DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    DeviceState *dev = zen_mobo_create(s->codename, blk);
     s->mobo = dev;
     s->ht = zen_mobo_get_ht(dev);
     s->smn = zen_mobo_get_smn(dev);
@@ -114,13 +106,18 @@ static void pc_zen_machine_state_init(MachineState *machine)
 
     mms->codename = pc_zen_get_codename(machine);
 
-    create_mobo(mms);
+    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
+    assert(dinfo);
+    BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
+    assert(blk);
+
+    create_mobo(mms, blk);
 
     x86_cpus_init(x86ms, CPU_VERSION_LATEST);
 
     map_ht_to_cpu(machine);
 
-    pc_zen_simulate_psp_boot(mms);
+    pc_zen_simulate_psp_boot(mms, blk);
 
     create_zen_rtc(mms);
 }
