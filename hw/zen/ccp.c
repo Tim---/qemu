@@ -171,7 +171,8 @@ ccp_mmio_read_high(CcpState *s, hwaddr addr)
     case A_ZLIB_SIZE:
         return s->zlib_size;
     case A_REG_6028:
-        return 1;
+        /* Alias, or only for late PSPs ? */
+        return s->zlib_size;
     case A_REG_6054:
         return s->reg_5064;
     }
