@@ -14,6 +14,7 @@
 #include "hw/zen/fch-spi.h"
 #include "hw/zen/zen-mobo.h"
 #include "hw/ssi/ssi.h"
+#include "hw/zen/smu.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -99,6 +100,14 @@ static void create_spi_rom(DeviceState *fch_spi, BlockBackend *blk)
     fch_spi_add_flash(fch_spi, blk, flash_type);
 }
 
+static void create_smu(PspMachineState *s, zen_codename codename)
+{
+    DeviceState *dev = qdev_new(TYPE_SMU);
+    qdev_prop_set_uint32(dev, "codename", codename);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x03b10000, false);
+}
+
 static void create_mobo(PspMachineState *s)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
@@ -125,6 +134,7 @@ static void psp_machine_init(MachineState *machine)
 
     DeviceState *fch_spi = create_fch_spi(s, pmc->codename);
     create_spi_rom(fch_spi, blk);
+    create_smu(s, pmc->codename);
 
     run_bootloader(blk, pmc->codename);
 
