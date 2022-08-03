@@ -5,6 +5,7 @@
 #include "hw/zen/zen-cpuid.h"
 #include "hw/qdev-properties.h"
 #include "trace.h"
+#include "sysemu/cpu-timers.h"
 
 /* Class structures */
 
@@ -94,6 +95,26 @@ PspRegister reg_crypto_flags = {
     .read = reg_crypto_flags_read,
 };
 
+static uint32_t reg_ticks_low_read(PspRegsState *s)
+{
+    return cpu_get_clock() & 0xffffffff;
+}
+
+PspRegister reg_ticks_low = {
+    .name = "ticks_low",
+    .read = reg_ticks_low_read,
+};
+
+static uint32_t reg_ticks_high_read(PspRegsState *s)
+{
+    return cpu_get_clock() >> 32;
+}
+
+PspRegister reg_ticks_high = {
+    .name = "ticks_high",
+    .read = reg_ticks_high_read,
+};
+
 /* Location definitions */
 
 #define LOC(type, offset, register) {REG_TYPE_ ## type, offset, &reg_ ## register}
@@ -136,16 +157,22 @@ PspRegisterLoc locs_vermeer[] = {
 PspRegisterLoc locs_lucienne[] = {
     LOC(PRIVATE, 0x48, bootrom_revid),
     LOC(PRIVATE, 0xd8, postcode),
+    LOC(PRIVATE, 0x1f0, ticks_low),
+    LOC(PRIVATE, 0x1f4, ticks_high),
     LOC_END
 };
 PspRegisterLoc locs_renoir[] = {
     LOC(PRIVATE, 0x48, bootrom_revid),
     LOC(PRIVATE, 0xd8, postcode),
+    LOC(PRIVATE, 0x1f0, ticks_low),
+    LOC(PRIVATE, 0x1f4, ticks_high),
     LOC_END
 };
 PspRegisterLoc locs_cezanne[] = {
     LOC(PRIVATE, 0x48, bootrom_revid),
     LOC(PRIVATE, 0xd8, postcode),
+    LOC(PRIVATE, 0x1f0, ticks_low),
+    LOC(PRIVATE, 0x1f4, ticks_high),
     LOC_END
 };
 
