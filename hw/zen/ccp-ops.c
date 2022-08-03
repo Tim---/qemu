@@ -877,7 +877,7 @@ int ccp_op_zlib(CcpState *s, struct ccp5_desc * desc)
     assert(desc->dw0.ioc == 0);
     assert(desc->dw0.init == 1);
     assert(desc->dw0.eom == 1);
-    assert(desc->dw0.prot == 0);
+    NOASSERT(desc->dw0.prot);
 
     /* Engine / function */
     assert(desc->dw0.engine == CCP_ENGINE_ZLIB_DECOMPRESS);
