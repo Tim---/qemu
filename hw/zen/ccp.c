@@ -130,7 +130,7 @@ ccp_mmio_read_low(CcpState *s, hwaddr addr)
     case A_QUEUE_PRIO:
         return s->queue_prio;
     case A_TRNG_OUT:
-        return 0;
+        return 1;
     case A_LSB_PRIVATE_MASK_LO:
         return 0x39ce0000;
     case A_LSB_PRIVATE_MASK_HI:
