@@ -31,6 +31,8 @@ static void psp_create_config(AddressSpace *as, zen_codename codename)
     switch(codename) {
     case CODENAME_SUMMIT_RIDGE:
     case CODENAME_PINNACLE_RIDGE:
+    case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
         create_config(as, 0x3fa50);
         break;
     case CODENAME_MATISSE:
