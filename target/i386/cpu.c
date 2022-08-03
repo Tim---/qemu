@@ -6855,7 +6855,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x80000001:
         *eax = env->cpuid_version;
-        *ebx = 0;
+        *ebx = AMD_PACKAGE_TYPE_AM4;
         *ecx = env->features[FEAT_8000_0001_ECX];
         *edx = env->features[FEAT_8000_0001_EDX];
 

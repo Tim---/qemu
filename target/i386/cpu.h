@@ -669,6 +669,8 @@ typedef enum FeatureWord {
     FEATURE_WORDS,
 } FeatureWord;
 
+#define AMD_PACKAGE_TYPE_AM4 (2U << 28)
+
 typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w);
 
