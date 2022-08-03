@@ -11,7 +11,6 @@
 #include "hw/zen/psp-dirty.h"
 #include "hw/zen/psp-soc.h"
 #include "hw/zen/zen-utils.h"
-#include "hw/zen/fch-spi.h"
 #include "hw/zen/zen-mobo.h"
 #include "hw/ssi/ssi.h"
 #include "hw/zen/smu.h"
@@ -51,55 +50,6 @@ static void run_bootloader(BlockBackend *blk, zen_codename codename)
     psp_on_chip_bootloader(as, blk, codename);
 }
 
-static DeviceState* create_fch_spi(PspMachineState *s, zen_codename codename)
-{
-    uint32_t smn_addr;
-
-    switch(codename) {
-    case CODENAME_SUMMIT_RIDGE:
-    case CODENAME_PINNACLE_RIDGE:
-    case CODENAME_RAVEN_RIDGE:
-    case CODENAME_PICASSO:
-        smn_addr = 0x0a000000;
-        break;
-    case CODENAME_MATISSE:
-    case CODENAME_VERMEER:
-    case CODENAME_LUCIENNE:
-    case CODENAME_RENOIR:
-    case CODENAME_CEZANNE:
-        smn_addr = 0x44000000;
-        break;
-    default:
-        g_assert_not_reached();
-    }
-    DeviceState *dev = qdev_new(TYPE_FCH_SPI);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x02dc4000, false);
-    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 1, smn_addr, false);
-    return dev;
-}
-
-static void create_spi_rom(DeviceState *fch_spi, BlockBackend *blk)
-{
-    const char *flash_type;
-
-    switch(blk_getlength(blk)) {
-    case 0x1000000:
-        flash_type = "mx25l12805d";
-        break;
-    /*
-    We don't know how to handle it properly for now
-    case 0x2000000:
-        flash_type = "mx25l25655e";
-        break;
-    */
-    default:
-        g_assert_not_reached();
-    }
-
-    fch_spi_add_flash(fch_spi, blk, flash_type);
-}
-
 static void create_smu(PspMachineState *s, zen_codename codename)
 {
     DeviceState *dev = qdev_new(TYPE_SMU);
@@ -108,10 +58,9 @@ static void create_smu(PspMachineState *s, zen_codename codename)
     zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x03b10000, false);
 }
 
-static void create_mobo(PspMachineState *s)
+static void create_mobo(PspMachineState *s, zen_codename codename, BlockBackend *blk)
 {
-    DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    DeviceState *dev = zen_mobo_create(codename, blk);
     s->mobo = dev;
     s->ht = zen_mobo_get_ht(dev);
     s->smn = zen_mobo_get_smn(dev);
@@ -128,12 +77,10 @@ static void psp_machine_init(MachineState *machine)
     BlockBackend *blk = blk_by_legacy_dinfo(dinfo);
     assert(blk);
 
-    create_mobo(s);
+    create_mobo(s, pmc->codename, blk);
 
     create_soc(s, machine->cpu_type, pmc->codename);
 
-    DeviceState *fch_spi = create_fch_spi(s, pmc->codename);
-    create_spi_rom(fch_spi, blk);
     create_smu(s, pmc->codename);
 
     run_bootloader(blk, pmc->codename);

@@ -13,11 +13,18 @@
 #include "exec/address-spaces.h"
 #include "hw/zen/fch-lpc-bridge.h"
 #include "hw/pci/pci.h"
+#include "hw/zen/fch-spi.h"
+#include "hw/zen/zen-cpuid.h"
+#include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
+#include "sysemu/block-backend.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
 struct ZenMoboState {
     SysBusDevice parent_obj;
+
+    zen_codename codename;
 
     MemoryRegion smn;
     MemoryRegion *ht;
@@ -26,6 +33,8 @@ struct ZenMoboState {
 
     ISABus *isa_bus;
     PCIBus *pci_bus;
+
+    DeviceState *fch_spi;
 };
 
 static void create_smn(ZenMoboState *s)
@@ -135,6 +144,66 @@ static void create_fch_lpc_bridge(ZenMoboState *s)
                                     true, TYPE_FCH_LPC_BRIDGE);
 }
 
+static DeviceState* create_fch_spi(ZenMoboState *s, zen_codename codename)
+{
+    uint32_t smn_addr;
+
+    switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+    case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
+        smn_addr = 0x0a000000;
+        break;
+    case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
+    case CODENAME_LUCIENNE:
+    case CODENAME_RENOIR:
+    case CODENAME_CEZANNE:
+        smn_addr = 0x44000000;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    DeviceState *dev = qdev_new(TYPE_FCH_SPI);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x02dc4000, false);
+    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 1, smn_addr, false);
+    zen_mobo_ht_map(DEVICE(s), SYS_BUS_DEVICE(dev), 1, 0xff000000, true);
+    return dev;
+}
+
+static void create_spi_rom(DeviceState *fch_spi, BlockBackend *blk)
+{
+    const char *flash_type;
+
+    switch(blk_getlength(blk)) {
+    case 0x1000000:
+        flash_type = "mx25l12805d";
+        break;
+    /*
+    We don't know how to handle it properly for now
+    case 0x2000000:
+        flash_type = "mx25l25655e";
+        break;
+    */
+    default:
+        g_assert_not_reached();
+    }
+
+    fch_spi_add_flash(fch_spi, blk, flash_type);
+}
+
+DeviceState *zen_mobo_create(zen_codename codename, BlockBackend *blk)
+{
+    DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
+    qdev_prop_set_uint32(dev, "codename", codename);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    create_spi_rom(ZEN_MOBO(dev)->fch_spi, blk);
+    return dev;
+}
+
 static void zen_mobo_init(Object *obj)
 {
 }
@@ -150,7 +219,13 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     create_pcie(s);
     create_isa(s);
     create_fch_lpc_bridge(s);
+    s->fch_spi = create_fch_spi(s, s->codename);
 }
+
+static Property zen_mobo_props[] = {
+    DEFINE_PROP_UINT32("codename", ZenMoboState, codename, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void zen_mobo_class_init(ObjectClass *oc, void *data)
 {
@@ -158,6 +233,7 @@ static void zen_mobo_class_init(ObjectClass *oc, void *data)
 
     dc->realize = zen_mobo_realize;
     dc->desc = "Zen motherboard";
+    device_class_set_props(dc, zen_mobo_props);
 }
 
 static const TypeInfo zen_mobo_type_info = {
