@@ -93,6 +93,17 @@ static void create_zen_rtc(PcZenMachineState *s)
     isa_realize_and_unref(isadev, s->isa, &error_fatal);
 }
 
+static void create_delay_port(PcZenMachineState *s)
+{
+    uint16_t ports[] = {0xeb, 0xed};
+    for(int i = 0; i < ARRAY_SIZE(ports); i++) {
+        g_autofree char *name = g_strdup_printf("delay-port%d", i);
+        MemoryRegion *region = g_malloc(sizeof(*region));
+        memory_region_init_ram(region, OBJECT(s), name, 1, &error_fatal);
+        memory_region_add_subregion(get_system_io(), ports[i], region);
+    }
+}
+
 static void create_df(PcZenMachineState *s)
 {
     DeviceState *dev = qdev_new(TYPE_DF);
@@ -131,6 +142,8 @@ static void pc_zen_machine_state_init(MachineState *machine)
     create_zen_rtc(mms);
 
     create_df(mms);
+
+    create_delay_port(mms);
 }
 
 static void pc_zen_machine_initfn(Object *obj)
