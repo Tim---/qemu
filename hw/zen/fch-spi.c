@@ -9,7 +9,7 @@
 #include "hw/irq.h"
 #include "hw/zen/fch-spi.h"
 
-#define REGS_SIZE 0x1000
+#define REGS_SIZE 0x20000
 
 OBJECT_DECLARE_SIMPLE_TYPE(FchSpiState, FCH_SPI)
 
@@ -48,6 +48,8 @@ REG32(SPI_STATUS,       0x4C)
     FIELD(SPI_STATUS, FIFO_RD_PTR,              16, 6)
 #define SPI_FIFO_SIZE 70
 REG8(SPI_FIFO,          0x80)
+
+REG8(ESPI_MASTER_CAP,   0x1002C)
 
 static inline uint8_t get_reg8(FchSpiState *s, hwaddr offset)
 {
@@ -305,6 +307,8 @@ static void fch_spi_realize(DeviceState *dev, Error **errp)
 
     s->spi = ssi_create_bus(DEVICE(s), "spi");
     sysbus_init_irq(sbd, &s->cs[0]);
+
+    set_reg32(s, A_ESPI_MASTER_CAP, 1);
 }
 
 static void fch_spi_class_init(ObjectClass *oc, void *data)
