@@ -11,6 +11,7 @@
 #include "hw/zen/zen-mobo.h"
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/fch-rtc.h"
+#include "hw/zen/fch-smbus.h"
 #include "hw/zen/df.h"
 #include "hw/qdev-properties.h"
 
@@ -112,6 +113,12 @@ static void create_df(PcZenMachineState *s)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 }
 
+static void create_fch_smbus(PcZenMachineState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_FCH_SMBUS);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+}
+
 static void map_ht_to_cpu(MachineState *machine)
 {
     PcZenMachineState *mms = PC_ZEN_MACHINE(machine);
@@ -144,6 +151,8 @@ static void pc_zen_machine_state_init(MachineState *machine)
     create_df(mms);
 
     create_delay_port(mms);
+
+    create_fch_smbus(mms);
 }
 
 static void pc_zen_machine_initfn(Object *obj)
