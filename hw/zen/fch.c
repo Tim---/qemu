@@ -4,6 +4,7 @@
 #include "hw/registerfields.h"
 #include "hw/acpi/acpi.h"
 #include "hw/zen/fch.h"
+#include "exec/address-spaces.h"
 
 #define PM   0x0300
 #define AOAC 0x1e00
@@ -97,6 +98,13 @@ static void create_acpi_region(FchState *s)
     memory_region_add_subregion(&s->regs_region, 0x0800, &s->acpi_region);
 }
 
+static void create_acpi_ports(FchState *s)
+{
+    MemoryRegion *tmr_region = g_malloc(sizeof(*tmr_region));
+    memory_region_init_alias(tmr_region, OBJECT(s), "acpi-tmr", &s->regs_region, 0x808, 4);
+    memory_region_add_subregion(get_system_io(), 0x808, tmr_region);
+}
+
 static void fch_realize(DeviceState *dev, Error **errp)
 {
     FchState *s = FCH(dev);
@@ -109,6 +117,7 @@ static void fch_realize(DeviceState *dev, Error **errp)
 
     fch_initialize_registers(s);
     create_acpi_region(s);
+    create_acpi_ports(s);
 }
 
 static void fch_class_init(ObjectClass *oc, void *data)
