@@ -11,19 +11,26 @@ struct FchLpcBridgeState {
 
     /*< public >*/
     MemoryRegion regs_region;
+    uint8_t storage[0x1000];
 };
 
 
 static uint32_t fch_lpc_bridge_config_read(PCIDevice *d, uint32_t addr, int size)
 {
+    FchLpcBridgeState *s = FCH_LPC_BRIDGE(d);
+
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%x, size 0x%x)\n", __func__, addr, size);
-    return 0;
+
+    return ldn_le_p(s->storage + addr, size);
 }
 
 static void fch_lpc_bridge_config_write(PCIDevice *d, uint32_t addr,
                                     uint32_t value, int size)
 {
+    FchLpcBridgeState *s = FCH_LPC_BRIDGE(d);
+    stn_le_p(s->storage + addr, size, value);
+
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
                 "(offset 0x%x, size 0x%x, value 0x%x)\n", __func__, addr, size, value);
 
