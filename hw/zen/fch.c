@@ -5,6 +5,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/zen/fch.h"
 #include "exec/address-spaces.h"
+#include "qemu/range.h"
 
 #define PM   0x0300
 #define AOAC 0x1e00
@@ -17,6 +18,7 @@ REG32(S5ResetStat,      PM + 0xC0)
 
 /* FCH::AOAC */
 REG8(DevD3Ctl_eSPI,     AOAC + 0x76)
+    FIELD(DevD3Ctl_eSPI,   PwrOnDev,      3, 1)
 REG8(DevD3State_eSPI,   AOAC + 0x77)
     FIELD(DevD3State_eSPI, RstBState,     2, 1)
     FIELD(DevD3State_eSPI, RefClkOkState, 1, 1)
@@ -35,6 +37,29 @@ struct FchState {
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(FchState, FCH)
+
+static inline uint8_t get_reg8(FchState *s, hwaddr offset)
+{
+    return ldub_p(s->storage + offset);
+}
+
+static inline void set_reg8(FchState *s, hwaddr offset, uint8_t value)
+{
+    stb_p(s->storage + offset, value);
+}
+
+static void update_aoac_espi(FchState *s)
+{
+    uint8_t ctl = get_reg8(s, A_DevD3Ctl_eSPI);
+    uint8_t pwron = FIELD_EX8(ctl, DevD3Ctl_eSPI, PwrOnDev);
+    uint8_t state = get_reg8(s, A_DevD3State_eSPI);
+
+    state = FIELD_DP32(state, DevD3State_eSPI, RstBState, pwron);
+    state = FIELD_DP32(state, DevD3State_eSPI, RefClkOkState, pwron);
+    state = FIELD_DP32(state, DevD3State_eSPI, PwrRstBState, pwron);
+
+    set_reg8(s, A_DevD3State_eSPI, state);
+}
 
 static uint64_t fch_io_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -55,6 +80,10 @@ static void fch_io_write(void *opaque, hwaddr addr,
                 "(offset 0x%lx, size 0x%x, value 0x%lx)\n", __func__, addr, size, value);
     
     stn_le_p(s->storage + addr, size, value);
+
+    if(range_covers_byte(addr, size, A_DevD3Ctl_eSPI)) {
+        update_aoac_espi(s);
+    }
 }
 
 
@@ -74,13 +103,6 @@ static void fch_initialize_registers(FchState *s)
     uint32_t s5_reset_stat = 0xffffffff;
     s5_reset_stat = FIELD_DP32(s5_reset_stat, S5ResetStat, UserRst, 1);
     stl_le_p(s->storage + A_S5ResetStat, s5_reset_stat);
-
-    /* Signal that the eSPI module is powered on */
-    uint8_t espi_aoac = 0;
-    espi_aoac = FIELD_DP32(espi_aoac, DevD3State_eSPI, RstBState, 1);
-    espi_aoac = FIELD_DP32(espi_aoac, DevD3State_eSPI, RefClkOkState, 1);
-    espi_aoac = FIELD_DP32(espi_aoac, DevD3State_eSPI, PwrRstBState, 1);
-    stb_p(s->storage + A_DevD3State_eSPI, espi_aoac);
 }
 
 static void fch_acpi_pm_update_sci_fn(ACPIREGS *regs)
