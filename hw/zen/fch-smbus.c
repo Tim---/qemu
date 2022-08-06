@@ -9,18 +9,32 @@
 #define REGS_SIZE 0x20
 
 REG8(STATUS,        0x00)
-    FIELD(STATUS, DEVICE_ERR, 2, 1)
-    FIELD(STATUS, SMBUS_INT, 1, 1)
+    FIELD(STATUS, FAILED,           4, 1)
+    FIELD(STATUS, BUS_COLLISION,    3, 1)
+    FIELD(STATUS, DEVICE_ERR,       2, 1)
+    FIELD(STATUS, SMBUS_INT,        1, 1)
+    FIELD(STATUS, HOST_BUSY,        0, 1)
 REG8(SLAVE_STATUS,  0x01)
+    FIELD(SLAVE_STATUS, ALERT_STATUS,   5, 1)
+    FIELD(SLAVE_STATUS, SHADOW2_STATUS, 4, 1)
+    FIELD(SLAVE_STATUS, SHADOW1_STATUS, 3, 1)
+    FIELD(SLAVE_STATUS, SLAVE_STATUS,   2, 1)
+    FIELD(SLAVE_STATUS, SLAVE_INIT,     1, 1)
+    FIELD(SLAVE_STATUS, SLAVE_BUSY,     0, 1)
 REG8(CONTROL,       0x02)
+    FIELD(CONTROL, RESET,           7, 1)
     FIELD(CONTROL, START,           6, 1)
     FIELD(CONTROL, SMBUS_PROTOCOL,  2, 3)
+    FIELD(CONTROL, KILL,            1, 1)
+    FIELD(CONTROL, INT_ENABLE,      0, 1)
 REG8(HOST_CMD,      0x03)
 REG8(ADDRESS,       0x04)
-    FIELD(ADDRESS, ADDR,            1, 7)
-    FIELD(ADDRESS, RDWR,            0, 1)
+    FIELD(ADDRESS, ADDR,    1, 7)
+    FIELD(ADDRESS, RDWR,    0, 1)
 REG8(DATA0,         0x05)
 REG8(SLAVE_CONTROL, 0x08)
+    FIELD(SLAVE_CONTROL, CLEAR_HOST_SEMAPHORE,  5, 1)
+    FIELD(SLAVE_CONTROL, HOST_SEMAPHORE,        4, 1)
 
 typedef enum {
     PROT_BYTE       = 1,
@@ -35,86 +49,84 @@ typedef enum {
 OBJECT_DECLARE_SIMPLE_TYPE(FchSmbusState, FCH_SMBUS)
 
 struct FchSmbusState {
-    /*< private >*/
     SysBusDevice parent_obj;
 
-    /*< public >*/
     MemoryRegion regs_region;
-    uint8_t storage[REGS_SIZE];
     I2CBus *bus;
+
+    uint8_t status;
+    uint8_t slave_status;
+    uint8_t control;
+    uint8_t host_cmd;
+    uint8_t address;
+    uint8_t data0;
+    uint8_t slave_control;
 };
 
-static inline uint8_t get_reg8(FchSmbusState *s, hwaddr offset)
+static void fch_smbus_start(FchSmbusState *s)
 {
-    return ldub_p(s->storage + offset);
-}
+    uint8_t proto = FIELD_EX8(s->control, CONTROL, SMBUS_PROTOCOL);
 
-static inline void set_reg8(FchSmbusState *s, hwaddr offset, uint8_t value)
-{
-    stb_p(s->storage + offset, value);
-}
+    uint8_t addr = FIELD_EX8(s->address, ADDRESS, ADDR);
+    uint8_t rdwr = FIELD_EX8(s->address, ADDRESS, RDWR);
 
-static void smbus_control(FchSmbusState *s)
-{
-    uint8_t control = get_reg8(s, A_CONTROL);
+    int res = 0;
 
-    if(FIELD_EX8(control, CONTROL, START) == 0) {
-        return;
-    }
 
-    uint8_t address = get_reg8(s, A_ADDRESS);
-    uint8_t host_cmd = get_reg8(s, A_HOST_CMD);
-    uint8_t data0 = get_reg8(s, A_DATA0);
-    uint8_t addr = FIELD_EX8(address, ADDRESS, ADDR);
-    SmbusRdWr rdwr = FIELD_EX8(address, ADDRESS, RDWR);
-
-    SmbusProtocol proto = FIELD_EX8(control, CONTROL, SMBUS_PROTOCOL);
-    int res;
-
+    assert(proto == PROT_BYTE || proto == PROT_BYTE_DATA);
     switch (proto) {
     case PROT_BYTE:
         switch (rdwr) {
         case RDWR_READ:
             res = smbus_receive_byte(s->bus, addr);
-            set_reg8(s, A_DATA0, res);
+            s->data0 = res;
             break;
         case RDWR_WRITE:
-            res = smbus_send_byte(s->bus, addr, data0);
+            res = smbus_send_byte(s->bus, addr, s->data0);
             break;
         }
         break;
     case PROT_BYTE_DATA:
         switch (rdwr) {
         case RDWR_READ:
-            res = smbus_read_byte(s->bus, addr, host_cmd);
-            set_reg8(s, A_DATA0, res);
+            res = smbus_read_byte(s->bus, addr, s->host_cmd);
+            s->data0 = res;
             break;
         case RDWR_WRITE:
-            res = smbus_write_byte(s->bus, addr, host_cmd, data0);
+            res = smbus_write_byte(s->bus, addr, s->host_cmd, s->data0);
             break;
         }
         break;
-    default:
-        g_assert_not_reached();
     }
-
-    uint8_t status = get_reg8(s, A_STATUS);
     if (res < 0) {
-        status = FIELD_DP8(status, STATUS, DEVICE_ERR, 1);
+        s->status = FIELD_DP8(s->status, STATUS, DEVICE_ERR, 1);
     } else {
-        status = FIELD_DP8(status, STATUS, SMBUS_INT, 1);
+        s->status = FIELD_DP8(s->status, STATUS, SMBUS_INT, 1);
     }
-    set_reg8(s, A_STATUS, status);
 }
 
 static uint64_t fch_smbus_io_read(void *opaque, hwaddr addr, unsigned size)
 {
     FchSmbusState *s = FCH_SMBUS(opaque);
 
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx, size 0x%x)\n", __func__, addr, size);
-
-    return ldn_le_p(s->storage + addr, size);
+    switch (addr) {
+    case R_STATUS:
+        return s->status;
+    case R_SLAVE_STATUS:
+        return s->slave_status;
+    case R_CONTROL:
+        return s->control;
+    case R_DATA0:
+        return s->data0;
+    case R_SLAVE_CONTROL:
+        return s->slave_control;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: Bad read offset 0x%"HWADDR_PRIx"\n",
+                    __func__, addr);
+        break;
+    }
+    return 0;
 }
 
 static void fch_smbus_io_write(void *opaque, hwaddr addr,
@@ -122,13 +134,76 @@ static void fch_smbus_io_write(void *opaque, hwaddr addr,
 {
     FchSmbusState *s = FCH_SMBUS(opaque);
 
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
-                "(offset 0x%lx, size 0x%x, value 0x%lx)\n", __func__, addr, size, value);
+    switch (addr) {
+    case R_STATUS:
+        if (FIELD_EX8(value, STATUS, SMBUS_INT)) {
+            s->status = FIELD_DP8(s->status, STATUS, SMBUS_INT, 0);
+        }
+        if (FIELD_EX8(value, STATUS, DEVICE_ERR)) {
+            s->status = FIELD_DP8(s->status, STATUS, DEVICE_ERR, 0);
+        }
+        if (FIELD_EX8(value, STATUS, BUS_COLLISION)) {
+            s->status = FIELD_DP8(s->status, STATUS, BUS_COLLISION, 0);
+        }
+        if (FIELD_EX8(value, STATUS, FAILED)) {
+            s->status = FIELD_DP8(s->status, STATUS, FAILED, 0);
+        }
+        return;
+    case R_SLAVE_STATUS:
+        /* TODO: if(FIELD_EX8(value, SLAVE_STATUS, SLAVE_INIT)) */
 
-    stn_le_p(s->storage + addr, size, value);
+        if (FIELD_EX8(value, SLAVE_STATUS, SLAVE_STATUS)) {
+            s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS,
+                                        SLAVE_STATUS, 0);
+        }
+        if (FIELD_EX8(value, SLAVE_STATUS, SHADOW1_STATUS)) {
+            s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS,
+                                        SHADOW1_STATUS, 0);
+        }
+        if (FIELD_EX8(value, SLAVE_STATUS, SHADOW2_STATUS)) {
+            s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS,
+                                        SHADOW2_STATUS, 0);
+        }
+        if (FIELD_EX8(value, SLAVE_STATUS, ALERT_STATUS)) {
+            s->slave_status = FIELD_DP8(s->slave_status, SLAVE_STATUS,
+                                        ALERT_STATUS, 0);
+        }
+        return;
+    case R_CONTROL:
+        s->control = value;
 
-    if(range_covers_byte(addr, size, A_CONTROL)) {
-        smbus_control(s);
+        if (FIELD_EX8(value, CONTROL, START)) {
+            fch_smbus_start(s);
+        }
+
+        return;
+    case R_HOST_CMD:
+        s->host_cmd = value;
+        return;
+    case R_ADDRESS:
+        s->address = value;
+        return;
+    case R_DATA0:
+        s->data0 = value;
+        return;
+    case R_SLAVE_CONTROL:
+        assert(value == 0x10 || value == 0x30);
+
+        if (FIELD_EX8(value, SLAVE_CONTROL, HOST_SEMAPHORE)) {
+            s->slave_control = FIELD_DP8(s->slave_control, SLAVE_CONTROL,
+                                            HOST_SEMAPHORE, 1);
+        }
+        if (FIELD_EX8(value, SLAVE_CONTROL, CLEAR_HOST_SEMAPHORE)) {
+            s->slave_control = FIELD_DP8(s->slave_control, SLAVE_CONTROL,
+                                            HOST_SEMAPHORE, 0);
+        }
+
+        return;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR,
+                    "%s: Bad write offset 0x%"HWADDR_PRIx"\n",
+                    __func__, addr);
+        break;
     }
 }
 
