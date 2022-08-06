@@ -122,9 +122,9 @@ static void create_acpi_region(FchState *s)
 
 static void create_acpi_ports(FchState *s)
 {
-    MemoryRegion *tmr_region = g_malloc(sizeof(*tmr_region));
-    memory_region_init_alias(tmr_region, OBJECT(s), "acpi-tmr", &s->regs_region, 0x808, 4);
-    memory_region_add_subregion(get_system_io(), 0x808, tmr_region);
+    MemoryRegion *acpi_pio_region = g_malloc(sizeof(*acpi_pio_region));
+    memory_region_init_alias(acpi_pio_region, OBJECT(s), "acpi-ports", &s->regs_region, 0x800, 12);
+    memory_region_add_subregion(get_system_io(), 0x800, acpi_pio_region);
 }
 
 static void fch_realize(DeviceState *dev, Error **errp)
