@@ -11,6 +11,8 @@ struct SmuState {
     SysBusDevice parent_obj;
     zen_codename codename;
     MemoryRegion regs;
+
+    uint32_t smu_ok_offset;
 };
 
 static uint64_t smu_read(void *opaque, hwaddr addr, unsigned size)
@@ -22,36 +24,10 @@ static uint64_t smu_read(void *opaque, hwaddr addr, unsigned size)
 
     if(addr == 0x704) {
         return 1;
+    } else if(addr == s->smu_ok_offset) {
+        return 1;
     }
 
-    switch(s->codename) {
-    case CODENAME_SUMMIT_RIDGE:
-    case CODENAME_PINNACLE_RIDGE:
-        if(addr == 0x34) {
-            // Mp1FWFlagsReg
-            return 1;
-        }
-        break;
-    case CODENAME_RAVEN_RIDGE:
-    case CODENAME_PICASSO:
-        if(addr == 0x28) {
-            // Mp1FWFlagsReg
-            return 1;
-        }
-        break;
-    case CODENAME_MATISSE:
-    case CODENAME_VERMEER:
-    case CODENAME_LUCIENNE:
-    case CODENAME_RENOIR:
-    case CODENAME_CEZANNE:
-        if(addr == 0x24) {
-            // Mp1FWFlagsReg
-            return 1;
-        }
-        break;
-    default:
-        g_assert_not_reached();
-    }
     return 0;
 }
 
@@ -88,6 +64,29 @@ static void smu_init(Object *obj)
 
 static void smu_realize(DeviceState *dev, Error **errp)
 {
+    SmuState *s = SMU(dev);
+
+    /* Mp1FWFlagsReg */
+    switch(s->codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+        s->smu_ok_offset = 0x34;
+        break;
+    case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
+        s->smu_ok_offset = 0x28;
+        break;
+    case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
+    case CODENAME_LUCIENNE:
+    case CODENAME_RENOIR:
+    case CODENAME_CEZANNE:
+        s->smu_ok_offset = 0x24;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
 }
 
 static Property psp_soc_props[] = {
