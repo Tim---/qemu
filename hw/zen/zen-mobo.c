@@ -124,7 +124,7 @@ static void create_isa(ZenMoboState *s)
     s->isa_bus = isa_bus_new(DEVICE(s), s->ht, get_system_io(), &error_fatal);
 }
 
-static void create_pcie(ZenMoboState *s)
+static void create_pcie_host(ZenMoboState *s)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_HOST);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
@@ -136,6 +136,15 @@ static void create_pcie(ZenMoboState *s)
 
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     s->pci_bus = phb->bus;
+}
+
+static void create_pcie_root(ZenMoboState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_ZEN_ROOT_DEVICE);
+    qdev_prop_set_int32(DEVICE(dev), "addr", PCI_DEVFN(0, 0));
+    qdev_prop_set_bit(DEVICE(dev), "multifunction", false);
+    object_property_set_link(OBJECT(dev), "smn", OBJECT(&s->smn), &error_fatal);
+    qdev_realize(dev, BUS(s->pci_bus), &error_fatal);
 }
 
 static void create_fch_lpc_bridge(ZenMoboState *s)
@@ -217,7 +226,8 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
 
     zen_mobo_create_serial(s);
     create_fch(DEVICE(s));
-    create_pcie(s);
+    create_pcie_host(s);
+    create_pcie_root(s);
     create_isa(s);
     create_fch_lpc_bridge(s);
     s->fch_spi = create_fch_spi(s, s->codename);
