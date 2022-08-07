@@ -34,6 +34,8 @@ struct FchState {
     MemoryRegion acpi_region;
     uint8_t storage[TOTAL_SIZE];
     ACPIREGS acpi_regs;
+    MemoryRegion pm_indirect_io;
+    uint8_t pm_addr;
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(FchState, FCH)
@@ -127,6 +129,49 @@ static void create_acpi_ports(FchState *s)
     memory_region_add_subregion(get_system_io(), 0x800, acpi_pio_region);
 }
 
+static uint64_t pm_indirect_read(void *opaque, hwaddr offset, unsigned size)
+{
+    FchState *s = FCH(opaque);
+
+    switch(offset) {
+    case 0:
+        return s->pm_addr;
+    case 1:
+        return fch_io_read(opaque, 0x0300 + s->pm_addr, 1);;
+    }
+    g_assert_not_reached();
+}
+
+static void pm_indirect_write(void *opaque, hwaddr offset,
+                                 uint64_t data, unsigned size)
+{
+    FchState *s = FCH(opaque);
+
+    switch(offset) {
+    case 0:
+        s->pm_addr = data;
+        return;
+    case 1:
+        fch_io_write(opaque, 0x0300 + s->pm_addr, data, 1);
+        return;
+    }
+    g_assert_not_reached();
+}
+
+const MemoryRegionOps pm_indirect_ops = {
+    .read = pm_indirect_read,
+    .write = pm_indirect_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 1,
+};
+
+static void create_pmio_ports(FchState *s)
+{
+    memory_region_init_io(&s->pm_indirect_io, OBJECT(s), &pm_indirect_ops, s, "pm-indirect", 2);
+    sysbus_add_io(SYS_BUS_DEVICE(s), 0xcd6, &s->pm_indirect_io);
+    sysbus_init_ioports(SYS_BUS_DEVICE(s), 0xcd6, 2);
+}
+
 static void fch_realize(DeviceState *dev, Error **errp)
 {
     FchState *s = FCH(dev);
@@ -140,6 +185,7 @@ static void fch_realize(DeviceState *dev, Error **errp)
     fch_initialize_registers(s);
     create_acpi_region(s);
     create_acpi_ports(s);
+    create_pmio_ports(s);
 }
 
 static void fch_class_init(ObjectClass *oc, void *data)
