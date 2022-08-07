@@ -52,6 +52,7 @@ struct FchSmbusState {
     SysBusDevice parent_obj;
 
     MemoryRegion regs_region;
+    MemoryRegion regs_region_alias;
     I2CBus *bus;
 
     uint8_t status;
@@ -228,6 +229,10 @@ static void fch_smbus_realize(DeviceState *dev, Error **errp)
 
     sysbus_add_io(sbd, 0xb00, &s->regs_region);
     sysbus_init_ioports(sbd, 0xb00, REGS_SIZE);
+
+    memory_region_init_alias(&s->regs_region_alias, OBJECT(s), "fch-smbus-regs-alias",
+                             &s->regs_region, 0, REGS_SIZE);
+    sysbus_init_mmio(sbd, &s->regs_region_alias);
 
     s->bus = i2c_init_bus(DEVICE(s), "smbus");
 }

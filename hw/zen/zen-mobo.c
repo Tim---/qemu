@@ -228,6 +228,8 @@ static BusState *create_fch_smbus(ZenMoboState *s)
 {
     DeviceState *dev = qdev_new(TYPE_FCH_SMBUS);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    /* Wow, this is really not pretty... FCH should own the FCH* devices */
+    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x02d01a00, false);
     return qdev_get_child_bus(dev, "smbus");
 }
 
