@@ -15,7 +15,8 @@ struct ZenRootState {
     PCIDevice parent_obj;
     /*< public >*/
     uint32_t smu_index_addr;
-    MemoryRegion *smn;
+    MemoryRegion *smn_region;
+    AddressSpace smn_as;
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenHost, ZEN_HOST)
@@ -107,8 +108,7 @@ static void zen_pci_root_config_write(PCIDevice *d, uint32_t addr,
         s->smu_index_addr = val;
         return;
     case A_SMU_INDEX_DATA:
-        memory_region_dispatch_write(s->smn, s->smu_index_addr, val,
-                                     size_memop(len), MEMTXATTRS_UNSPECIFIED);
+        address_space_stl_le(&s->smn_as, s->smu_index_addr, val, MEMTXATTRS_UNSPECIFIED, NULL);
         return;
     }
 
@@ -120,7 +120,7 @@ static void zen_pci_root_config_write(PCIDevice *d, uint32_t addr,
 static uint32_t zen_pci_root_config_read(PCIDevice *d, uint32_t addr, int len)
 {
     ZenRootState *s = ZEN_ROOT_DEVICE(d);
-    uint64_t res = 0;
+    uint32_t res = 0;
 
     if(addr < 0x40) {
         return pci_default_read_config(d, addr, len);
@@ -130,9 +130,7 @@ static uint32_t zen_pci_root_config_read(PCIDevice *d, uint32_t addr, int len)
     case A_SMU_INDEX_ADDR:
         return s->smu_index_addr;
     case A_SMU_INDEX_DATA:
-        memory_region_dispatch_read(s->smn, s->smu_index_addr, &res,
-                                    size_memop(len), MEMTXATTRS_UNSPECIFIED);
-        return res;
+        return address_space_ldl_le(&s->smn_as, s->smu_index_addr, MEMTXATTRS_UNSPECIFIED, NULL);
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
@@ -142,6 +140,8 @@ static uint32_t zen_pci_root_config_read(PCIDevice *d, uint32_t addr, int len)
 
 static void zen_pci_root_realize(PCIDevice *dev, Error **errp)
 {
+    ZenRootState *s = ZEN_ROOT_DEVICE(dev);
+    address_space_init(&s->smn_as, s->smn_region, "smn-memory");
 }
 
 static void zen_pci_root_init(Object *obj)
@@ -149,7 +149,7 @@ static void zen_pci_root_init(Object *obj)
 }
 
 static Property zen_pci_root_props[] = {
-    DEFINE_PROP_LINK("smn", ZenRootState, smn,
+    DEFINE_PROP_LINK("smn", ZenRootState, smn_region,
                      TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
