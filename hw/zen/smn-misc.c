@@ -26,6 +26,13 @@ static uint64_t smn_misc_read(void *opaque, hwaddr offset, unsigned size)
     switch(offset) {
     case 0x5a86c:
         return zen_get_cpuid(s->codename);
+    case 0x3e10024:
+        /*
+        MP2_RSMU_FUSESTRAPS
+        Bit 0 is set to 1 to signal that MP2 is disabled
+        This is needed for the raven-ridge PSP bootloader.
+        */
+        return 1;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(offset 0x%lx)\n",
