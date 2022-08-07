@@ -19,6 +19,8 @@
 #include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
 #include "hw/zen/smu.h"
+#include "hw/zen/fch-smbus.h"
+#include "hw/zen/ddr4-spd.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -222,6 +224,22 @@ static void create_smu(ZenMoboState *s)
     zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x03b10000, false);
 }
 
+static BusState *create_fch_smbus(ZenMoboState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_FCH_SMBUS);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    return qdev_get_child_bus(dev, "smbus");
+}
+
+static void create_ddr4(ZenMoboState *s, BusState *smbus)
+{
+    DeviceState *dev = qdev_new(TYPE_DDR4_SPD);
+    qdev_prop_set_uint8(dev, "address", 0x50);
+    object_property_set_link(OBJECT(dev), "bus",
+                             OBJECT(smbus), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+}
+
 DeviceState *zen_mobo_create(zen_codename codename, BlockBackend *blk)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
@@ -250,6 +268,8 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     create_fch_lpc_bridge(s);
     s->fch_spi = create_fch_spi(s, s->codename);
     create_smu(s);
+    BusState *smbus = create_fch_smbus(s);
+    create_ddr4(s, smbus);
 }
 
 static Property zen_mobo_props[] = {

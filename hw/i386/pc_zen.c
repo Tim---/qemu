@@ -11,9 +11,7 @@
 #include "hw/zen/zen-mobo.h"
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/fch-rtc.h"
-#include "hw/zen/fch-smbus.h"
 #include "hw/zen/df.h"
-#include "hw/zen/ddr4-spd.h"
 #include "hw/zen/smn-misc.h"
 #include "hw/qdev-properties.h"
 
@@ -115,22 +113,6 @@ static void create_df(PcZenMachineState *s)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 }
 
-static BusState *create_fch_smbus(PcZenMachineState *s)
-{
-    DeviceState *dev = qdev_new(TYPE_FCH_SMBUS);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    return qdev_get_child_bus(dev, "smbus");
-}
-
-static void create_ddr4(PcZenMachineState *s, BusState *smbus)
-{
-    DeviceState *dev = qdev_new(TYPE_DDR4_SPD);
-    qdev_prop_set_uint8(dev, "address", 0x50);
-    object_property_set_link(OBJECT(dev), "bus",
-                             OBJECT(smbus), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-}
-
 static void create_smn_misc(PcZenMachineState *s)
 {
     DeviceState *dev = qdev_new(TYPE_SMN_MISC);
@@ -171,9 +153,6 @@ static void pc_zen_machine_state_init(MachineState *machine)
     create_df(mms);
 
     create_delay_port(mms);
-
-    BusState *smbus = create_fch_smbus(mms);
-    create_ddr4(mms, smbus);
 
     create_smn_misc(mms);
 }
