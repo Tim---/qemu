@@ -136,7 +136,7 @@ static void create_smn_misc(PcZenMachineState *s)
     DeviceState *dev = qdev_new(TYPE_SMN_MISC);
     qdev_prop_set_uint32(dev, "codename", s->codename);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0, false);
+    zen_mobo_smn_map_overlap(s->mobo, SYS_BUS_DEVICE(dev), 0, 0, false);
 }
 
 static void map_ht_to_cpu(MachineState *machine)
