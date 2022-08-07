@@ -18,6 +18,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
+#include "hw/zen/smu.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -77,7 +78,7 @@ PCIBus *zen_mobo_get_pci(DeviceState *dev)
     return s->pci_bus;
 }
 
-static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
+static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwaddr addr, bool alias, bool overlap)
 {
     MemoryRegion *region = sysbus_mmio_get_region(sbd, n);
 
@@ -92,17 +93,26 @@ static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwadd
         region = alias;
     }
 
-    memory_region_add_subregion(container, addr, region);
+    if(overlap) {
+        memory_region_add_subregion_overlap(container, addr, region, -1000);
+    } else {
+        memory_region_add_subregion(container, addr, region);
+    }
 }
 
 void zen_mobo_smn_map(DeviceState *dev, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
 {
-    generic_map(zen_mobo_get_smn(dev), sbd, n, addr, alias);
+    generic_map(zen_mobo_get_smn(dev), sbd, n, addr, alias, false);
+}
+
+void zen_mobo_smn_map_overlap(DeviceState *dev, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
+{
+    generic_map(zen_mobo_get_smn(dev), sbd, n, addr, alias, true);
 }
 
 void zen_mobo_ht_map(DeviceState *dev, SysBusDevice *sbd, int n, hwaddr addr, bool alias)
 {
-    generic_map(zen_mobo_get_ht(dev), sbd, n, addr, alias);
+    generic_map(zen_mobo_get_ht(dev), sbd, n, addr, alias, false);
 }
 
 static void zen_mobo_create_serial(ZenMoboState *s)
@@ -204,6 +214,14 @@ static void create_spi_rom(DeviceState *fch_spi, BlockBackend *blk)
     fch_spi_add_flash(fch_spi, blk, flash_type);
 }
 
+static void create_smu(ZenMoboState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_SMU);
+    qdev_prop_set_uint32(dev, "codename", s->codename);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x03b10000, false);
+}
+
 DeviceState *zen_mobo_create(zen_codename codename, BlockBackend *blk)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
@@ -231,6 +249,7 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     create_isa(s);
     create_fch_lpc_bridge(s);
     s->fch_spi = create_fch_spi(s, s->codename);
+    create_smu(s);
 }
 
 static Property zen_mobo_props[] = {

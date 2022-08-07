@@ -13,7 +13,6 @@
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/zen-mobo.h"
 #include "hw/ssi/ssi.h"
-#include "hw/zen/smu.h"
 
 #define TYPE_PSP_MACHINE                MACHINE_TYPE_NAME("psp")
 
@@ -50,14 +49,6 @@ static void run_bootloader(BlockBackend *blk, zen_codename codename)
     psp_on_chip_bootloader(as, blk, codename);
 }
 
-static void create_smu(PspMachineState *s, zen_codename codename)
-{
-    DeviceState *dev = qdev_new(TYPE_SMU);
-    qdev_prop_set_uint32(dev, "codename", codename);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0x03b10000, false);
-}
-
 static void create_mobo(PspMachineState *s, zen_codename codename, BlockBackend *blk)
 {
     DeviceState *dev = zen_mobo_create(codename, blk);
@@ -80,8 +71,6 @@ static void psp_machine_init(MachineState *machine)
     create_mobo(s, pmc->codename, blk);
 
     create_soc(s, machine->cpu_type, pmc->codename);
-
-    create_smu(s, pmc->codename);
 
     run_bootloader(blk, pmc->codename);
 
