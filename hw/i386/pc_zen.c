@@ -14,6 +14,7 @@
 #include "hw/zen/fch-smbus.h"
 #include "hw/zen/df.h"
 #include "hw/zen/ddr4-spd.h"
+#include "hw/zen/smn-misc.h"
 #include "hw/qdev-properties.h"
 
 struct PcZenMachineClass {
@@ -130,6 +131,14 @@ static void create_ddr4(PcZenMachineState *s, BusState *smbus)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 }
 
+static void create_smn_misc(PcZenMachineState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_SMN_MISC);
+    qdev_prop_set_uint32(dev, "codename", s->codename);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_smn_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0, false);
+}
+
 static void map_ht_to_cpu(MachineState *machine)
 {
     PcZenMachineState *mms = PC_ZEN_MACHINE(machine);
@@ -165,6 +174,8 @@ static void pc_zen_machine_state_init(MachineState *machine)
 
     BusState *smbus = create_fch_smbus(mms);
     create_ddr4(mms, smbus);
+
+    create_smn_misc(mms);
 }
 
 static void pc_zen_machine_initfn(Object *obj)
