@@ -115,6 +115,16 @@ PspRegister reg_ticks_high = {
     .read = reg_ticks_high_read,
 };
 
+static uint32_t reg_debug_serial_read(PspRegsState *s)
+{
+    return 1;
+}
+
+PspRegister reg_debug_serial = {
+    .name = "debug_serial",
+    .read = reg_debug_serial_read,
+};
+
 /* Location definitions */
 
 #define LOC(type, offset, register) {REG_TYPE_ ## type, offset, &reg_ ## register}
@@ -134,6 +144,7 @@ PspRegisterLoc locs_pinnacle[] = {
 PspRegisterLoc locs_raven[] = {
     LOC(PRIVATE, 0x4c, bootrom_revid),
     LOC(PRIVATE, 0xf0, postcode),
+    LOC(PUBLIC,  0x3c, debug_serial),
     LOC_END
 };
 PspRegisterLoc locs_picasso[] = {
@@ -226,7 +237,7 @@ static uint64_t psp_regs_public_read(void *opaque, hwaddr offset,
     PspRegsState *s = PSP_REGS(opaque);
     PspRegister *reg = get_register(s, REG_TYPE_PUBLIC, offset);
 
-    if(reg) {
+    if(reg && reg->read) {
         return reg->read(s);
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
@@ -241,7 +252,7 @@ static void psp_regs_public_write(void *opaque, hwaddr offset,
     PspRegsState *s = PSP_REGS(opaque);
     PspRegister *reg = get_register(s, REG_TYPE_PUBLIC, offset);
 
-    if(reg) {
+    if(reg && reg->write) {
         reg->write(s, data);
     } else {
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
