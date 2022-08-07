@@ -27,8 +27,9 @@
 #define A_ARRAY_B_BASE  A_ARRAY_A_END
 #define A_ARRAY_B_END   (A_ARRAY_B_BASE + HT_BRIDGE_MAX_MAPPINGS * 4)
 
-/* 0x5ec on some platforms ! */
-#define A_DOIT          0x05F0
+/* The first one is only for summit-ridge ? */
+#define A_DOIT1          0x05EC
+#define A_DOIT2          0x05F0
 
 #define A_KEY_BASE      0x8000
 #define A_KEY_RELATED   0x8040
@@ -105,7 +106,8 @@ static void ht_bridge_io_write(void *opaque, hwaddr addr,
         return;
     } else {
         switch (addr) {
-        case A_DOIT:
+        case A_DOIT1:
+        case A_DOIT2:
             break;
         case A_KEY_RELATED:
             break;
