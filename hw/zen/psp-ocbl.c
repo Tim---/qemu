@@ -28,6 +28,23 @@ static void create_config(AddressSpace *as, uint32_t addr)
     address_space_stb(as, addr + 5, 1, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
+static void create_config_lucienne_renoir(AddressSpace *as, uint32_t addr)
+{
+    // 0x4fd54:4 -> default SPI rom
+    // 0x4fd5d:1 -> socket id
+    // 0x4fd5f:1 -> socket Count
+
+    // SocketId
+    address_space_stb(as, addr + 0xd, 0, MEMTXATTRS_UNSPECIFIED, NULL);
+    // SocketCount
+    address_space_stb(as, addr + 0xf, 1, MEMTXATTRS_UNSPECIFIED, NULL);
+}
+
+static void create_config_cezanne(AddressSpace *as, uint32_t addr)
+{
+    // 0x4fd50:4 -> default SPI rom
+}
+
 static void psp_create_config(AddressSpace *as, zen_codename codename)
 {
     switch(codename) {
@@ -41,8 +58,15 @@ static void psp_create_config(AddressSpace *as, zen_codename codename)
     case CODENAME_VERMEER:
         create_config(as, 0x4fd50);
         break;
-    default:
+    case CODENAME_LUCIENNE:
+    case CODENAME_RENOIR:
+        create_config_lucienne_renoir(as, 0x4fd50);
         break;
+    case CODENAME_CEZANNE:
+        create_config_cezanne(as, 0x4fd50);
+        break;
+    default:
+        g_assert_not_reached();
     }
 }
 
