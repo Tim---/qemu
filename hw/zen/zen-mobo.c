@@ -19,7 +19,6 @@
 #include "hw/qdev-properties-system.h"
 #include "sysemu/block-backend.h"
 #include "hw/zen/smu.h"
-#include "hw/zen/fch-smbus.h"
 #include "hw/zen/ddr4-spd.h"
 #include "hw/zen/smn-misc.h"
 
@@ -123,13 +122,14 @@ static void zen_mobo_create_serial(ZenMoboState *s)
     serial_mm_init(get_system_io(), 0x3f8, 0, NULL, 9600, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 }
 
-static void create_fch(DeviceState *s)
+static DeviceState *create_fch(DeviceState *s)
 {
     DeviceState *dev = qdev_new(TYPE_FCH);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     zen_mobo_ht_map(s, SYS_BUS_DEVICE(dev), 0, 0xfed80000, false);
     zen_mobo_smn_map(s, SYS_BUS_DEVICE(dev), 0, 0x02d01000, true);
+    return dev;
 }
 
 static void create_isa(ZenMoboState *s)
@@ -225,15 +225,6 @@ static void create_smu(ZenMoboState *s)
     zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x03b10000, false);
 }
 
-static BusState *create_fch_smbus(ZenMoboState *s)
-{
-    DeviceState *dev = qdev_new(TYPE_FCH_SMBUS);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    /* Wow, this is really not pretty... FCH should own the FCH* devices */
-    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x02d01a00, false);
-    return qdev_get_child_bus(dev, "smbus");
-}
-
 static void create_ddr4(ZenMoboState *s, BusState *smbus)
 {
     DeviceState *dev = qdev_new(TYPE_DDR4_SPD);
@@ -272,14 +263,14 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     create_ht(s);
 
     zen_mobo_create_serial(s);
-    create_fch(DEVICE(s));
+    DeviceState *fch = create_fch(DEVICE(s));
     create_pcie_host(s);
     create_pcie_root(s);
     create_isa(s);
     create_fch_lpc_bridge(s);
     s->fch_spi = create_fch_spi(s, s->codename);
     create_smu(s);
-    BusState *smbus = create_fch_smbus(s);
+    BusState *smbus = qdev_get_child_bus(fch, "smbus");
     create_ddr4(s, smbus);
     create_smn_misc(s);
 }

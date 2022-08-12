@@ -6,6 +6,8 @@
 #include "hw/zen/fch.h"
 #include "exec/address-spaces.h"
 #include "qemu/range.h"
+#include "hw/zen/fch-smbus.h"
+#include "qapi/error.h"
 
 #define PM   0x0300
 #define AOAC 0x1e00
@@ -172,6 +174,15 @@ static void create_pmio_ports(FchState *s)
     sysbus_init_ioports(SYS_BUS_DEVICE(s), 0xcd6, 2);
 }
 
+static void create_fch_smbus(FchState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_FCH_SMBUS);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    memory_region_add_subregion(&s->regs_region, 0xa00, sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
+    object_property_add_alias(OBJECT(s), "smbus", OBJECT(dev),
+                              "smbus");
+}
+
 static void fch_realize(DeviceState *dev, Error **errp)
 {
     FchState *s = FCH(dev);
@@ -186,6 +197,7 @@ static void fch_realize(DeviceState *dev, Error **errp)
     create_acpi_region(s);
     create_acpi_ports(s);
     create_pmio_ports(s);
+    create_fch_smbus(s);
 }
 
 static void fch_class_init(ObjectClass *oc, void *data)
