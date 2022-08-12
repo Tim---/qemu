@@ -43,6 +43,13 @@ static void create_config_lucienne_renoir(AddressSpace *as, uint32_t addr)
 static void create_config_cezanne(AddressSpace *as, uint32_t addr)
 {
     // 0x4fd50:4 -> default SPI rom
+    // 0x4fd59:1 -> socket id
+    // 0x4fd5b:1 -> socket Count
+
+    // SocketId
+    address_space_stb(as, addr + 0x9, 0, MEMTXATTRS_UNSPECIFIED, NULL);
+    // SocketCount
+    address_space_stb(as, addr + 0xb, 1, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static void psp_create_config(AddressSpace *as, zen_codename codename)
