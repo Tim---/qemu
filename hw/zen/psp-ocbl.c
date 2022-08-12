@@ -20,6 +20,8 @@ typedef struct {
 
 static void create_config(AddressSpace *as, uint32_t addr)
 {
+    // PackageType
+    address_space_stb(as, addr + 2, 2, MEMTXATTRS_UNSPECIFIED, NULL);
     // SystemSocketCount
     address_space_stb(as, addr + 3, 1, MEMTXATTRS_UNSPECIFIED, NULL);
     // DiesPerSocket
