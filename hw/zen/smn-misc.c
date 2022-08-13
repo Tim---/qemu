@@ -26,6 +26,16 @@ static uint64_t smn_misc_read(void *opaque, hwaddr offset, unsigned size)
     switch(offset) {
     case 0x5a86c:
         return zen_get_cpuid(s->codename);
+    case 0x5a08c:
+        /*
+        matisse (and later ?) expect it to have the number of "dimms" (?)
+        in bits 2-4
+
+        2   -> 2 "dimms"
+        4   -> 8 "dimms"
+        7   -> 4 "dimms"
+        */
+        return 2 << 2;
     case 0x3e10024:
         /*
         MP2_RSMU_FUSESTRAPS
