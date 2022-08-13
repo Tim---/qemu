@@ -125,6 +125,17 @@ PspRegister reg_debug_serial = {
     .read = reg_debug_serial_read,
 };
 
+static uint32_t reg_port80_str_debug_read(PspRegsState *s)
+{
+    // return 0x80000000 for lucienne/renoir
+    return 0;
+}
+
+PspRegister reg_port80_str_debug = {
+    .name = "port80_str_debug",
+    .read = reg_port80_str_debug_read,
+};
+
 /* Location definitions */
 
 #define LOC(type, offset, register) {REG_TYPE_ ## type, offset, &reg_ ## register}
@@ -174,6 +185,7 @@ PspRegisterLoc locs_lucienne[] = {
     LOC(PRIVATE, 0xd8, postcode),
     LOC(PRIVATE, 0x1f0, ticks_low),
     LOC(PRIVATE, 0x1f4, ticks_high),
+    LOC(PUBLIC,  0xa48, port80_str_debug),
     LOC_END
 };
 PspRegisterLoc locs_renoir[] = {
@@ -181,6 +193,7 @@ PspRegisterLoc locs_renoir[] = {
     LOC(PRIVATE, 0xd8, postcode),
     LOC(PRIVATE, 0x1f0, ticks_low),
     LOC(PRIVATE, 0x1f4, ticks_high),
+    LOC(PUBLIC,  0xa48, port80_str_debug),
     LOC_END
 };
 PspRegisterLoc locs_cezanne[] = {
@@ -188,6 +201,7 @@ PspRegisterLoc locs_cezanne[] = {
     LOC(PRIVATE, 0xd8, postcode),
     LOC(PRIVATE, 0x1f0, ticks_low),
     LOC(PRIVATE, 0x1f4, ticks_high),
+    LOC(PUBLIC,  0xa88, port80_str_debug),
     LOC_END
 };
 
