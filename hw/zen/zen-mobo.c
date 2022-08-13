@@ -226,13 +226,66 @@ static void create_smu(ZenMoboState *s)
     zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x03b10000, false);
 }
 
-static void create_ddr4(ZenMoboState *s, BusState *smbus)
+static void create_single_ddr4(ZenMoboState *s, BusState *smbus, uint8_t address)
 {
     DeviceState *dev = qdev_new(TYPE_DDR4_SPD);
-    qdev_prop_set_uint8(dev, "address", 0x50);
+    qdev_prop_set_uint8(dev, "address", address);
     object_property_set_link(OBJECT(dev), "bus",
-                             OBJECT(smbus), &error_fatal);
+                            OBJECT(smbus), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+}
+
+static void create_ddr4(ZenMoboState *s, BusState *smbus)
+{
+    /*
+    SMBus addresses of the SPDs depending on the topology.
+    The "channel inversion" for Matisse is perhaps due to the APCB
+    data in our firmware.
+
+    summit-ridge:
+        socket 0, channel 0, dimm 0: 0x50
+        socket 0, channel 1, dimm 0: 0x51
+    raven-ridge:
+        socket 0, channel 0, dimm 0: 0x50
+        socket 0, channel 1, dimm 0: 0x51
+    matisse:
+        socket 0, channel 1, dimm 0: 0x50
+        socket 0, channel 0, dimm 0: 0x51
+        socket 0, channel 1, dimm 1: 0x52
+        socket 0, channel 0, dimm 1: 0x53
+    renoir:
+        socket 0, channel 0, dimm 0: 0x50
+        socket 0, channel 1, dimm 0: 0x51
+        socket 0, channel 0, dimm 1: 0x52
+        socket 0, channel 1, dimm 1: 0x53
+    cezanne:
+        socket 0, channel 0, dimm 0: 0x50
+        socket 0, channel 1, dimm 0: 0x51
+        socket 0, channel 0, dimm 1: 0x52
+        socket 0, channel 1, dimm 1: 0x53
+    */
+
+    switch(s->codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+    case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
+        create_single_ddr4(s, smbus, 0x50);
+        break;
+    case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
+        create_single_ddr4(s, smbus, 0x51);
+        create_single_ddr4(s, smbus, 0x53);
+        break;
+    case CODENAME_LUCIENNE:
+    case CODENAME_RENOIR:
+    case CODENAME_CEZANNE:
+        create_single_ddr4(s, smbus, 0x50);
+        create_single_ddr4(s, smbus, 0x52);
+        break;
+    default:
+        g_assert_not_reached();
+    }
 }
 
 static void create_smn_misc(ZenMoboState *s)
