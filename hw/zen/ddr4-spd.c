@@ -133,9 +133,10 @@ static uint8_t ddr4_spd_data_receive_byte(SMBusDevice *dev)
     Ddr4SpdDataState *s = DDR4_SPD_DATA(dev);
 
     int addr = *s->bank * 256 + s->offset;
+    s->offset++;
     assert(addr >= 0 && addr < 512);
 
-    return s->data[s->offset++];
+    return s->data[addr];
 }
 
 static void ddr4_spd_data_class_init(ObjectClass *klass, void *data)
@@ -174,7 +175,7 @@ static void ddr4_spd_realize(DeviceState *dev, Error **errp)
     qdev_realize_and_unref(dev, BUS(s->bus), &error_fatal);
 
     dev = qdev_new(TYPE_DDR4_SPD_DATA);
-    qdev_prop_set_uint8(dev, "address", 0x50);
+    qdev_prop_set_uint8(dev, "address", s->address);
     DDR4_SPD_DATA(dev)->bank = &s->bank;
     qdev_realize_and_unref(dev, BUS(s->bus), &error_fatal);
 }
