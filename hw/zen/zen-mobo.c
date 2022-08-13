@@ -21,6 +21,7 @@
 #include "hw/zen/smu.h"
 #include "hw/zen/ddr4-spd.h"
 #include "hw/zen/smn-misc.h"
+#include "hw/zen/zen-umc.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -242,6 +243,13 @@ static void create_smn_misc(ZenMoboState *s)
     zen_mobo_smn_map_overlap(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0, false);
 }
 
+static void create_umc(ZenMoboState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_ZEN_UMC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x50000, false);
+}
+
 DeviceState *zen_mobo_create(zen_codename codename, BlockBackend *blk)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
@@ -273,6 +281,7 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     BusState *smbus = qdev_get_child_bus(fch, "smbus");
     create_ddr4(s, smbus);
     create_smn_misc(s);
+    create_umc(s);
 }
 
 static Property zen_mobo_props[] = {
