@@ -12,6 +12,7 @@ struct ZenUmcState {
     MemoryRegion region;
     uint32_t indirect_addr;
     uint32_t indirect_data;
+    uint32_t storage[0x2000/4];
 };
 
 REG32(CTRL_EMU_TYPE,         0x1050)
@@ -68,7 +69,7 @@ static uint64_t zen_umc_read(void *opaque, hwaddr offset, unsigned size)
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(offset 0x%lx)\n",
                   __func__, offset);
-    return 0;
+    return s->storage[offset/4];
 }
 
 static void zen_umc_write(void *opaque, hwaddr offset,
@@ -106,6 +107,7 @@ static void zen_umc_write(void *opaque, hwaddr offset,
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(offset 0x%lx, value 0x%lx)\n",
                   __func__, offset, value);
+    s->storage[offset/4] = value;
 }
 
 static const MemoryRegionOps zen_umc_ops = {
