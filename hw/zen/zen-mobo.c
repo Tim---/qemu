@@ -298,9 +298,13 @@ static void create_smn_misc(ZenMoboState *s)
 
 static void create_umc(ZenMoboState *s)
 {
-    DeviceState *dev = qdev_new(TYPE_ZEN_UMC);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x50000, false);
+    hwaddr addresses[] = {0x50000, 0x150000};
+
+    for(int i = 0; i < ARRAY_SIZE(addresses); i++) {
+        DeviceState *dev = qdev_new(TYPE_ZEN_UMC);
+        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+        zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, addresses[i], false);
+    }
 }
 
 DeviceState *zen_mobo_create(zen_codename codename, BlockBackend *blk)
