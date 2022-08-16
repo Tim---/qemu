@@ -30,6 +30,48 @@ struct DfFuncState {
 REG32(D18F1x200, FUN_REG(1, 0x200))
 REG32(D18F1x204, FUN_REG(1, 0x204))
 
+/* FICA (see linux arch/x86/kernel/amd_nb.c) */
+REG32(FICA_ADDR, FUN_REG(4, 0x5c))
+    FIELD(FICA_ADDR, RUN,    0, 2) /* must be one */
+    FIELD(FICA_ADDR, REG,    2, 8) /* multiply by 4 */
+    FIELD(FICA_ADDR, LARGE, 10, 1) /* 64 bits op */
+    FIELD(FICA_ADDR, FUNC,  11, 3)
+    FIELD(FICA_ADDR, NODE,  16, 8)
+REG32(FICA_DATA0, FUN_REG(4, 0x98))
+REG32(FICA_DATA1, FUN_REG(4, 0x9c))
+
+/* FICA alias ? used by PSP */
+REG32(IND_CTRL,  FUN_REG(4, 0x50))
+REG32(IND_DATA0, FUN_REG(4, 0x80))
+REG32(IND_DATA1, FUN_REG(4, 0x84))
+
+static uint32_t fica_read(DfState *s, hwaddr addr)
+{
+    assert(FIELD_EX32(addr, FICA_ADDR, RUN) == 1);
+    assert(FIELD_EX32(addr, FICA_ADDR, LARGE) == 0);
+    uint32_t node = FIELD_EX32(addr, FICA_ADDR, NODE);
+    uint32_t func = FIELD_EX32(addr, FICA_ADDR, FUNC); 
+    uint32_t reg = FIELD_EX32(addr, FICA_ADDR, REG) << 2;
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented read  "
+                  "(addr [%02x:%01x:%03x])\n",
+                  __func__, node, func, reg);
+    return 0;
+}
+
+static void fica_write(DfState *s, hwaddr addr, uint32_t data)
+{
+    assert(FIELD_EX32(addr, FICA_ADDR, RUN) == 1);
+    assert(FIELD_EX32(addr, FICA_ADDR, LARGE) == 0);
+    uint32_t node = FIELD_EX32(addr, FICA_ADDR, NODE);
+    uint32_t func = FIELD_EX32(addr, FICA_ADDR, FUNC); 
+    uint32_t reg = FIELD_EX32(addr, FICA_ADDR, REG) << 2;
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented write "
+                  "(addr [%02x:%01x:%03x], value 0x%x)\n",
+                  __func__, node, func, reg, data);
+}
+
 static uint64_t df_read(DfState *s, int fun, hwaddr offset, unsigned size)
 {
     uint64_t res = 0;
@@ -41,6 +83,8 @@ static uint64_t df_read(DfState *s, int fun, hwaddr offset, unsigned size)
     case A_D18F1x204:
         res = 0x00010001;
         break;
+    case A_FICA_DATA0:
+        return fica_read(s, s->fica_addr);
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(size %d, offset D18F%dx%lx)\n",
@@ -52,6 +96,14 @@ static void df_write(DfState *s, int fun, hwaddr offset,
                          uint64_t data, unsigned size)
 {
     switch(FUN_REG(fun, offset)) {
+    case A_FICA_ADDR:
+        s->fica_addr = data;
+        assert(FIELD_EX32(s->fica_addr, FICA_ADDR, RUN) == 1);
+        assert(FIELD_EX32(s->fica_addr, FICA_ADDR, LARGE) == 0);
+        return;
+    case A_FICA_DATA0:
+        fica_write(s, s->fica_addr, data);
+        return;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
