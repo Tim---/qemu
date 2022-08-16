@@ -11,7 +11,6 @@
 #include "hw/zen/zen-mobo.h"
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/fch-rtc.h"
-#include "hw/zen/df.h"
 #include "hw/qdev-properties.h"
 
 struct PcZenMachineClass {
@@ -104,14 +103,6 @@ static void create_delay_port(PcZenMachineState *s)
     }
 }
 
-static void create_df(PcZenMachineState *s)
-{
-    DeviceState *dev = qdev_new(TYPE_DF);
-    object_property_set_link(OBJECT(dev), "pci-bus",
-                                OBJECT(s->pci), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-}
-
 static void map_ht_to_cpu(MachineState *machine)
 {
     PcZenMachineState *mms = PC_ZEN_MACHINE(machine);
@@ -140,8 +131,6 @@ static void pc_zen_machine_state_init(MachineState *machine)
     pc_zen_simulate_psp_boot(mms, blk);
 
     create_zen_rtc(mms);
-
-    create_df(mms);
 
     create_delay_port(mms);
 }
