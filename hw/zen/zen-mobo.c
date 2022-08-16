@@ -124,6 +124,44 @@ static void zen_mobo_create_serial(ZenMoboState *s)
     serial_mm_init(get_system_io(), 0x3f8, 0, NULL, 9600, serial_hd(0), DEVICE_NATIVE_ENDIAN);
 }
 
+static void pcie_smn_access_write(void *opaque, hwaddr mmcfg_addr,
+                                  uint64_t val, unsigned len)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(opaque);
+    uint32_t addr;
+    uint32_t limit;
+
+    addr = PCIE_MMCFG_CONFOFFSET(mmcfg_addr);
+    limit = pci_config_size(pci_dev);
+    pci_host_config_write_common(pci_dev, addr, limit, val, len);
+}
+
+static uint64_t pcie_smn_access_read(void *opaque,
+                                     hwaddr mmcfg_addr,
+                                     unsigned len)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(opaque);
+    uint32_t addr;
+    uint32_t limit;
+
+    addr = PCIE_MMCFG_CONFOFFSET(mmcfg_addr);
+    limit = pci_config_size(pci_dev);
+    return pci_host_config_read_common(pci_dev, addr, limit, len);
+}
+
+static const MemoryRegionOps pcie_smn_access_ops = {
+    .read = pcie_smn_access_read,
+    .write = pcie_smn_access_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void create_pcie_smn_access(ZenMoboState *s, PCIDevice *dev, hwaddr offset, uint64_t size)
+{
+    MemoryRegion *region = g_malloc0(sizeof(*region));
+    memory_region_init_io(region, OBJECT(s), &pcie_smn_access_ops, dev, "pcie-alias", size);
+    memory_region_add_subregion(&s->smn, offset, region);
+}
+
 static DeviceState *create_fch(DeviceState *s)
 {
     DeviceState *dev = qdev_new(TYPE_FCH);
@@ -314,6 +352,11 @@ static void create_df(ZenMoboState *s)
     object_property_set_link(OBJECT(dev), "pci-bus",
                                 OBJECT(s->pci_bus), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    for(int fun = 0; fun < 8; fun++) {
+        PCIDevice *dev = pci_find_device(s->pci_bus, 0, PCI_DEVFN(0x18, fun));
+        create_pcie_smn_access(s, dev, 0x1c000 + fun * 0x400, 0x400);
+    }
 }
 
 DeviceState *zen_mobo_create(zen_codename codename, BlockBackend *blk)
