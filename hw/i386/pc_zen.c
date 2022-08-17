@@ -10,7 +10,7 @@
 #include "hw/sysbus.h"
 #include "hw/zen/zen-mobo.h"
 #include "hw/zen/zen-utils.h"
-#include "hw/zen/fch-rtc.h"
+#include "hw/rtc/mc146818rtc.h"
 #include "hw/qdev-properties.h"
 
 struct PcZenMachineClass {
@@ -88,7 +88,7 @@ static void create_mobo(PcZenMachineState *s, BlockBackend *blk)
 
 static void create_zen_rtc(PcZenMachineState *s)
 {
-    ISADevice *isadev = isa_new(TYPE_FCH_RTC);
+    ISADevice *isadev = isa_new(TYPE_MC146818_RTC);
     isa_realize_and_unref(isadev, s->isa, &error_fatal);
 }
 

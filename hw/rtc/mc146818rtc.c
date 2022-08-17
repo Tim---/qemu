@@ -449,124 +449,141 @@ static void rtc_update_timer(void *opaque)
     check_update_timer(s);
 }
 
+static void cmos_write(RTCState *s, uint8_t cmos_index, uint8_t data)
+{
+    uint32_t old_period;
+    bool update_periodic_timer;
+
+    CMOS_DPRINTF("cmos: write index=0x%02x val=0x%02" PRIx64 "\n",
+                    cmos_index, data);
+    switch(cmos_index) {
+    case RTC_SECONDS_ALARM:
+    case RTC_MINUTES_ALARM:
+    case RTC_HOURS_ALARM:
+        s->cmos_data[cmos_index] = data;
+        check_update_timer(s);
+        break;
+    case RTC_IBM_PS2_CENTURY_BYTE:
+        cmos_index = RTC_CENTURY;
+        /* fall through */
+    case RTC_CENTURY:
+    case RTC_SECONDS:
+    case RTC_MINUTES:
+    case RTC_HOURS:
+    case RTC_DAY_OF_WEEK:
+    case RTC_DAY_OF_MONTH:
+    case RTC_MONTH:
+    case RTC_YEAR:
+        s->cmos_data[cmos_index] = data;
+        /* if in set mode, do not update the time */
+        if (rtc_running(s)) {
+            rtc_set_time(s);
+            check_update_timer(s);
+        }
+        break;
+    case RTC_REG_A:
+        update_periodic_timer = (s->cmos_data[RTC_REG_A] ^ data) & 0x0f;
+        old_period = rtc_periodic_clock_ticks(s);
+
+        if ((data & 0x60) == 0x60) {
+            if (rtc_running(s)) {
+                rtc_update_time(s);
+            }
+            /* What happens to UIP when divider reset is enabled is
+                * unclear from the datasheet.  Shouldn't matter much
+                * though.
+                */
+            s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
+        } else if (((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) &&
+                (data & 0x70)  <= 0x20) {
+            /* when the divider reset is removed, the first update cycle
+                * begins one-half second later*/
+            if (!(s->cmos_data[RTC_REG_B] & REG_B_SET)) {
+                s->offset = 500000000;
+                rtc_set_time(s);
+            }
+            s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
+        }
+        /* UIP bit is read only */
+        s->cmos_data[RTC_REG_A] = (data & ~REG_A_UIP) |
+            (s->cmos_data[RTC_REG_A] & REG_A_UIP);
+
+        if (update_periodic_timer) {
+            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
+                                    old_period, true);
+        }
+
+        check_update_timer(s);
+        break;
+    case RTC_REG_B:
+        update_periodic_timer = (s->cmos_data[RTC_REG_B] ^ data)
+                                    & REG_B_PIE;
+        old_period = rtc_periodic_clock_ticks(s);
+
+        if (data & REG_B_SET) {
+            /* update cmos to when the rtc was stopping */
+            if (rtc_running(s)) {
+                rtc_update_time(s);
+            }
+            /* set mode: reset UIP mode */
+            s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
+            data &= ~REG_B_UIE;
+        } else {
+            /* if disabling set mode, update the time */
+            if ((s->cmos_data[RTC_REG_B] & REG_B_SET) &&
+                (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20) {
+                s->offset = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
+                rtc_set_time(s);
+            }
+        }
+        /* if an interrupt flag is already set when the interrupt
+            * becomes enabled, raise an interrupt immediately.  */
+        if (data & s->cmos_data[RTC_REG_C] & REG_C_MASK) {
+            s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
+            qemu_irq_raise(s->irq);
+        } else {
+            s->cmos_data[RTC_REG_C] &= ~REG_C_IRQF;
+            qemu_irq_lower(s->irq);
+        }
+        s->cmos_data[RTC_REG_B] = data;
+
+        if (update_periodic_timer) {
+            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
+                                    old_period, true);
+        }
+
+        check_update_timer(s);
+        break;
+    case RTC_REG_C:
+    case RTC_REG_D:
+        /* cannot write to them */
+        break;
+    default:
+        s->cmos_data[cmos_index] = data;
+        break;
+    }
+}
+
 static void cmos_ioport_write(void *opaque, hwaddr addr,
                               uint64_t data, unsigned size)
 {
     RTCState *s = opaque;
-    uint32_t old_period;
-    bool update_periodic_timer;
+    uint8_t bank;
 
-    if ((addr & 1) == 0) {
+    switch(addr) {
+    case 0:
         s->cmos_index = data & 0x7f;
-    } else {
-        CMOS_DPRINTF("cmos: write index=0x%02x val=0x%02" PRIx64 "\n",
-                     s->cmos_index, data);
-        switch(s->cmos_index) {
-        case RTC_SECONDS_ALARM:
-        case RTC_MINUTES_ALARM:
-        case RTC_HOURS_ALARM:
-            s->cmos_data[s->cmos_index] = data;
-            check_update_timer(s);
-            break;
-        case RTC_IBM_PS2_CENTURY_BYTE:
-            s->cmos_index = RTC_CENTURY;
-            /* fall through */
-        case RTC_CENTURY:
-        case RTC_SECONDS:
-        case RTC_MINUTES:
-        case RTC_HOURS:
-        case RTC_DAY_OF_WEEK:
-        case RTC_DAY_OF_MONTH:
-        case RTC_MONTH:
-        case RTC_YEAR:
-            s->cmos_data[s->cmos_index] = data;
-            /* if in set mode, do not update the time */
-            if (rtc_running(s)) {
-                rtc_set_time(s);
-                check_update_timer(s);
-            }
-            break;
-        case RTC_REG_A:
-            update_periodic_timer = (s->cmos_data[RTC_REG_A] ^ data) & 0x0f;
-            old_period = rtc_periodic_clock_ticks(s);
-
-            if ((data & 0x60) == 0x60) {
-                if (rtc_running(s)) {
-                    rtc_update_time(s);
-                }
-                /* What happens to UIP when divider reset is enabled is
-                 * unclear from the datasheet.  Shouldn't matter much
-                 * though.
-                 */
-                s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
-            } else if (((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) &&
-                    (data & 0x70)  <= 0x20) {
-                /* when the divider reset is removed, the first update cycle
-                 * begins one-half second later*/
-                if (!(s->cmos_data[RTC_REG_B] & REG_B_SET)) {
-                    s->offset = 500000000;
-                    rtc_set_time(s);
-                }
-                s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
-            }
-            /* UIP bit is read only */
-            s->cmos_data[RTC_REG_A] = (data & ~REG_A_UIP) |
-                (s->cmos_data[RTC_REG_A] & REG_A_UIP);
-
-            if (update_periodic_timer) {
-                periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
-                                      old_period, true);
-            }
-
-            check_update_timer(s);
-            break;
-        case RTC_REG_B:
-            update_periodic_timer = (s->cmos_data[RTC_REG_B] ^ data)
-                                       & REG_B_PIE;
-            old_period = rtc_periodic_clock_ticks(s);
-
-            if (data & REG_B_SET) {
-                /* update cmos to when the rtc was stopping */
-                if (rtc_running(s)) {
-                    rtc_update_time(s);
-                }
-                /* set mode: reset UIP mode */
-                s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
-                data &= ~REG_B_UIE;
-            } else {
-                /* if disabling set mode, update the time */
-                if ((s->cmos_data[RTC_REG_B] & REG_B_SET) &&
-                    (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20) {
-                    s->offset = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
-                    rtc_set_time(s);
-                }
-            }
-            /* if an interrupt flag is already set when the interrupt
-             * becomes enabled, raise an interrupt immediately.  */
-            if (data & s->cmos_data[RTC_REG_C] & REG_C_MASK) {
-                s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
-                qemu_irq_raise(s->irq);
-            } else {
-                s->cmos_data[RTC_REG_C] &= ~REG_C_IRQF;
-                qemu_irq_lower(s->irq);
-            }
-            s->cmos_data[RTC_REG_B] = data;
-
-            if (update_periodic_timer) {
-                periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
-                                      old_period, true);
-            }
-
-            check_update_timer(s);
-            break;
-        case RTC_REG_C:
-        case RTC_REG_D:
-            /* cannot write to them */
-            break;
-        default:
-            s->cmos_data[s->cmos_index] = data;
-            break;
-        }
+        break;
+    case 1:
+        bank = (s->cmos_data[RTC_REG_A] & REG_A_DV0) == REG_A_DV0;
+        cmos_write(s, bank * 0x80 + s->cmos_index, data);
+        break;
+    case 2:
+        s->cmos_index_alt = data;
+        break;
+    case 3:
+        cmos_write(s, s->cmos_index_alt, data);
+        break;
     }
 }
 
@@ -688,68 +705,83 @@ static int update_in_progress(RTCState *s)
     return 0;
 }
 
+static uint8_t cmos_read(RTCState *s, uint8_t cmos_index)
+{
+    int ret;
+
+    switch(cmos_index) {
+    case RTC_IBM_PS2_CENTURY_BYTE:
+        cmos_index = RTC_CENTURY;
+        /* fall through */
+    case RTC_CENTURY:
+    case RTC_SECONDS:
+    case RTC_MINUTES:
+    case RTC_HOURS:
+    case RTC_DAY_OF_WEEK:
+    case RTC_DAY_OF_MONTH:
+    case RTC_MONTH:
+    case RTC_YEAR:
+        /* if not in set mode, calibrate cmos before
+            * reading*/
+        if (rtc_running(s)) {
+            rtc_update_time(s);
+        }
+        ret = s->cmos_data[cmos_index];
+        break;
+    case RTC_REG_A:
+        ret = s->cmos_data[cmos_index];
+        if (update_in_progress(s)) {
+            ret |= REG_A_UIP;
+        }
+        break;
+    case RTC_REG_C:
+        ret = s->cmos_data[cmos_index];
+        qemu_irq_lower(s->irq);
+        s->cmos_data[RTC_REG_C] = 0x00;
+        if (ret & (REG_C_UF | REG_C_AF)) {
+            check_update_timer(s);
+        }
+
+        if(s->irq_coalesced &&
+                (s->cmos_data[RTC_REG_B] & REG_B_PIE) &&
+                s->irq_reinject_on_ack_count < RTC_REINJECT_ON_ACK_COUNT) {
+            s->irq_reinject_on_ack_count++;
+            s->cmos_data[RTC_REG_C] |= REG_C_IRQF | REG_C_PF;
+            DPRINTF_C("cmos: injecting on ack\n");
+            if (rtc_policy_slew_deliver_irq(s)) {
+                s->irq_coalesced--;
+                DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
+                            s->irq_coalesced);
+            }
+        }
+        break;
+    default:
+        ret = s->cmos_data[cmos_index];
+        break;
+    }
+    CMOS_DPRINTF("cmos: read index=0x%02x val=0x%02x\n",
+                    cmos_index, ret);
+    return ret;
+}
+
 static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     RTCState *s = opaque;
-    int ret;
-    if ((addr & 1) == 0) {
-        return 0xff;
-    } else {
-        switch(s->cmos_index) {
-        case RTC_IBM_PS2_CENTURY_BYTE:
-            s->cmos_index = RTC_CENTURY;
-            /* fall through */
-        case RTC_CENTURY:
-        case RTC_SECONDS:
-        case RTC_MINUTES:
-        case RTC_HOURS:
-        case RTC_DAY_OF_WEEK:
-        case RTC_DAY_OF_MONTH:
-        case RTC_MONTH:
-        case RTC_YEAR:
-            /* if not in set mode, calibrate cmos before
-             * reading*/
-            if (rtc_running(s)) {
-                rtc_update_time(s);
-            }
-            ret = s->cmos_data[s->cmos_index];
-            break;
-        case RTC_REG_A:
-            ret = s->cmos_data[s->cmos_index];
-            if (update_in_progress(s)) {
-                ret |= REG_A_UIP;
-            }
-            break;
-        case RTC_REG_C:
-            ret = s->cmos_data[s->cmos_index];
-            qemu_irq_lower(s->irq);
-            s->cmos_data[RTC_REG_C] = 0x00;
-            if (ret & (REG_C_UF | REG_C_AF)) {
-                check_update_timer(s);
-            }
+    uint8_t bank;
 
-            if(s->irq_coalesced &&
-                    (s->cmos_data[RTC_REG_B] & REG_B_PIE) &&
-                    s->irq_reinject_on_ack_count < RTC_REINJECT_ON_ACK_COUNT) {
-                s->irq_reinject_on_ack_count++;
-                s->cmos_data[RTC_REG_C] |= REG_C_IRQF | REG_C_PF;
-                DPRINTF_C("cmos: injecting on ack\n");
-                if (rtc_policy_slew_deliver_irq(s)) {
-                    s->irq_coalesced--;
-                    DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
-                              s->irq_coalesced);
-                }
-            }
-            break;
-        default:
-            ret = s->cmos_data[s->cmos_index];
-            break;
-        }
-        CMOS_DPRINTF("cmos: read index=0x%02x val=0x%02x\n",
-                     s->cmos_index, ret);
-        return ret;
+    switch(addr) {
+    case 0:
+        return 0xff;
+    case 1:
+        bank = (s->cmos_data[RTC_REG_A] & REG_A_DV0) == REG_A_DV0;
+        return cmos_read(s, bank * 0x80 + s->cmos_index);
+    case 2:
+        return 0xff;
+    case 3:
+        return cmos_read(s, s->cmos_index_alt);
     }
+    return 0;
 }
 
 void rtc_set_memory(ISADevice *dev, int addr, int val)
@@ -942,7 +974,7 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     s->suspend_notifier.notify = rtc_notify_suspend;
     qemu_register_suspend_notifier(&s->suspend_notifier);
 
-    memory_region_init_io(&s->io, OBJECT(s), &cmos_ops, s, "rtc", 2);
+    memory_region_init_io(&s->io, OBJECT(s), &cmos_ops, s, "rtc", 4);
     isa_register_ioport(isadev, &s->io, s->io_base);
 
     /* register rtc 0x70 port for coalesced_pio */
