@@ -1,5 +1,5 @@
 specific_ss.add(when: 'CONFIG_FCH', if_true: files(
-    'fch.c', 'fch-lpc-bridge.c', 'fch-spi.c', 'fch-rtc.c', 'fch-smbus.c',
+    'fch.c', 'fch-lpc-bridge.c', 'fch-spi.c', 'fch-smbus.c',
 ))
 specific_ss.add(when: 'CONFIG_ZEN', if_true: files(
     'zen-rom.c', 'zen-cpuid.c', 'zen-utils.c', 'zen-mobo.c', 'zen-pci-root.c',

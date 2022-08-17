@@ -44,30 +44,36 @@
 #include "qapi/qapi-events-misc.h"
 #include "qapi/visitor.h"
 
-//#define DEBUG_CMOS
-//#define DEBUG_COALESCED
+// #define DEBUG_CMOS
+// #define DEBUG_COALESCED
 
 #ifdef DEBUG_CMOS
-# define CMOS_DPRINTF(format, ...)      printf(format, ## __VA_ARGS__)
+#define CMOS_DPRINTF(format, ...) printf(format, ##__VA_ARGS__)
 #else
-# define CMOS_DPRINTF(format, ...)      do { } while (0)
+#define CMOS_DPRINTF(format, ...) \
+    do                            \
+    {                             \
+    } while (0)
 #endif
 
 #ifdef DEBUG_COALESCED
-# define DPRINTF_C(format, ...)      printf(format, ## __VA_ARGS__)
+#define DPRINTF_C(format, ...) printf(format, ##__VA_ARGS__)
 #else
-# define DPRINTF_C(format, ...)      do { } while (0)
+#define DPRINTF_C(format, ...) \
+    do                         \
+    {                          \
+    } while (0)
 #endif
 
-#define SEC_PER_MIN     60
-#define MIN_PER_HOUR    60
-#define SEC_PER_HOUR    3600
-#define HOUR_PER_DAY    24
-#define SEC_PER_DAY     86400
+#define SEC_PER_MIN 60
+#define MIN_PER_HOUR 60
+#define SEC_PER_HOUR 3600
+#define HOUR_PER_DAY 24
+#define SEC_PER_DAY 86400
 
 #define RTC_REINJECT_ON_ACK_COUNT 20
-#define RTC_CLOCK_RATE            32768
-#define UIP_HOLD_LENGTH           (8 * NANOSECONDS_PER_SECOND / 32768)
+#define RTC_CLOCK_RATE 32768
+#define UIP_HOLD_LENGTH (8 * NANOSECONDS_PER_SECOND / 32768)
 
 #define RTC_ISA_BASE 0x70
 
@@ -88,18 +94,21 @@ static uint64_t get_guest_rtc_ns(MC146818RtcState *s)
     uint64_t guest_clock = qemu_clock_get_ns(rtc_clock);
 
     return s->base_rtc * NANOSECONDS_PER_SECOND +
-        guest_clock - s->last_update + s->offset;
+           guest_clock - s->last_update + s->offset;
 }
 
 static void rtc_coalesced_timer_update(MC146818RtcState *s)
 {
-    if (s->irq_coalesced == 0) {
+    if (s->irq_coalesced == 0)
+    {
         timer_del(s->coalesced_timer);
-    } else {
+    }
+    else
+    {
         /* divide each RTC interval to 2 - 8 smaller intervals */
         int c = MIN(s->irq_coalesced, 7) + 1;
         int64_t next_clock = qemu_clock_get_ns(rtc_clock) +
-            periodic_clock_to_ns(s->period / c);
+                             periodic_clock_to_ns(s->period / c);
         timer_mod(s->coalesced_timer, next_clock);
     }
 }
@@ -120,10 +129,12 @@ static void rtc_coalesced_timer(void *opaque)
 {
     MC146818RtcState *s = opaque;
 
-    if (s->irq_coalesced != 0) {
+    if (s->irq_coalesced != 0)
+    {
         s->cmos_data[RTC_REG_C] |= 0xc0;
         DPRINTF_C("cmos: injecting from timer\n");
-        if (rtc_policy_slew_deliver_irq(s)) {
+        if (rtc_policy_slew_deliver_irq(s))
+        {
             s->irq_coalesced--;
             DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
                       s->irq_coalesced);
@@ -137,9 +148,10 @@ static uint32_t rtc_periodic_clock_ticks(MC146818RtcState *s)
 {
     int period_code;
 
-    if (!(s->cmos_data[RTC_REG_B] & REG_B_PIE)) {
+    if (!(s->cmos_data[RTC_REG_B] & REG_B_PIE))
+    {
         return 0;
-     }
+    }
 
     period_code = s->cmos_data[RTC_REG_A] & 0x0f;
 
@@ -159,7 +171,8 @@ static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
     period = rtc_periodic_clock_ticks(s);
     s->period = period;
 
-    if (!period) {
+    if (!period)
+    {
         s->irq_coalesced = 0;
         timer_del(s->periodic_timer);
         return;
@@ -173,11 +186,12 @@ static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
      * if the periodic timer's update is due to period re-configuration,
      * we should count the clock since last interrupt.
      */
-    if (old_period && period_change) {
+    if (old_period && period_change)
+    {
         int64_t last_periodic_clock, next_periodic_clock;
 
         next_periodic_clock = muldiv64(s->next_periodic_time,
-                                RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
+                                       RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
         last_periodic_clock = next_periodic_clock - old_period;
         lost_clock = cur_clock - last_periodic_clock;
         assert(lost_clock >= 0);
@@ -197,20 +211,25 @@ static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
      *    to a shorter period, scale up the missing ticks since the
      *    OS handler will treat past delayed ticks as shorter.
      */
-    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
+    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW)
+    {
         uint32_t old_irq_coalesced = s->irq_coalesced;
 
         lost_clock += old_irq_coalesced * old_period;
         s->irq_coalesced = lost_clock / s->period;
         lost_clock %= s->period;
         if (old_irq_coalesced != s->irq_coalesced ||
-            old_period != s->period) {
+            old_period != s->period)
+        {
             DPRINTF_C("cmos: coalesced irqs scaled from %d to %d, "
-                      "period scaled from %d to %d\n", old_irq_coalesced,
+                      "period scaled from %d to %d\n",
+                      old_irq_coalesced,
                       s->irq_coalesced, old_period, s->period);
             rtc_coalesced_timer_update(s);
         }
-    } else {
+    }
+    else
+    {
         /*
          * no way to compensate the interrupt if LOST_TICK_POLICY_SLEW
          * is not used, we should make the time progress anyway.
@@ -231,18 +250,22 @@ static void rtc_periodic_timer(void *opaque)
 
     periodic_timer_update(s, s->next_periodic_time, s->period, false);
     s->cmos_data[RTC_REG_C] |= REG_C_PF;
-    if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
+    if (s->cmos_data[RTC_REG_B] & REG_B_PIE)
+    {
         s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
-        if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
+        if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW)
+        {
             if (s->irq_reinject_on_ack_count >= RTC_REINJECT_ON_ACK_COUNT)
                 s->irq_reinject_on_ack_count = 0;
-            if (!rtc_policy_slew_deliver_irq(s)) {
+            if (!rtc_policy_slew_deliver_irq(s))
+            {
                 s->irq_coalesced++;
                 rtc_coalesced_timer_update(s);
                 DPRINTF_C("cmos: coalesced irqs increased to %d\n",
                           s->irq_coalesced);
             }
-        } else
+        }
+        else
             qemu_irq_raise(s->irq);
     }
 }
@@ -258,15 +281,15 @@ static void check_update_timer(MC146818RtcState *s)
      * interrupts from operating, while setting the SET bit allows"
      * them to occur.
      */
-    if ((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) {
+    if ((s->cmos_data[RTC_REG_A] & 0x60) == 0x60)
+    {
         assert((s->cmos_data[RTC_REG_A] & REG_A_UIP) == 0);
         timer_del(s->update_timer);
         return;
     }
 
     guest_nsec = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
-    next_update_time = qemu_clock_get_ns(rtc_clock)
-        + NANOSECONDS_PER_SECOND - guest_nsec;
+    next_update_time = qemu_clock_get_ns(rtc_clock) + NANOSECONDS_PER_SECOND - guest_nsec;
 
     /* Compute time of next alarm.  One second is already accounted
      * for in next_update_time.
@@ -280,12 +303,14 @@ static void check_update_timer(MC146818RtcState *s)
      * if UF is already set, we might be able to optimize.
      */
     if (!(s->cmos_data[RTC_REG_A] & REG_A_UIP) &&
-        (s->cmos_data[RTC_REG_C] & REG_C_UF)) {
+        (s->cmos_data[RTC_REG_C] & REG_C_UF))
+    {
         /* If AF cannot change (i.e. either it is set already, or
          * SET=1 and then the time is not updated), nothing to do.
          */
         if ((s->cmos_data[RTC_REG_B] & REG_B_SET) ||
-            (s->cmos_data[RTC_REG_C] & REG_C_AF)) {
+            (s->cmos_data[RTC_REG_C] & REG_C_AF))
+        {
             timer_del(s->update_timer);
             return;
         }
@@ -294,16 +319,19 @@ static void check_update_timer(MC146818RtcState *s)
          * the alarm time.  */
         next_update_time = s->next_alarm_time;
     }
-    if (next_update_time != timer_expire_time_ns(s->update_timer)) {
+    if (next_update_time != timer_expire_time_ns(s->update_timer))
+    {
         timer_mod(s->update_timer, next_update_time);
     }
 }
 
 static inline uint8_t convert_hour(MC146818RtcState *s, uint8_t hour)
 {
-    if (!(s->cmos_data[RTC_REG_B] & REG_B_24H)) {
+    if (!(s->cmos_data[RTC_REG_B] & REG_B_24H))
+    {
         hour %= 12;
-        if (s->cmos_data[RTC_HOURS] & 0x80) {
+        if (s->cmos_data[RTC_HOURS] & 0x80)
+        {
             hour += 12;
         }
     }
@@ -327,48 +355,72 @@ static uint64_t get_next_alarm(MC146818RtcState *s)
     cur_hour = rtc_from_bcd(s, s->cmos_data[RTC_HOURS]);
     cur_hour = convert_hour(s, cur_hour);
 
-    if (alarm_hour == -1) {
+    if (alarm_hour == -1)
+    {
         alarm_hour = cur_hour;
-        if (alarm_min == -1) {
+        if (alarm_min == -1)
+        {
             alarm_min = cur_min;
-            if (alarm_sec == -1) {
+            if (alarm_sec == -1)
+            {
                 alarm_sec = cur_sec + 1;
-            } else if (cur_sec > alarm_sec) {
+            }
+            else if (cur_sec > alarm_sec)
+            {
                 alarm_min++;
             }
-        } else if (cur_min == alarm_min) {
-            if (alarm_sec == -1) {
+        }
+        else if (cur_min == alarm_min)
+        {
+            if (alarm_sec == -1)
+            {
                 alarm_sec = cur_sec + 1;
-            } else {
-                if (cur_sec > alarm_sec) {
+            }
+            else
+            {
+                if (cur_sec > alarm_sec)
+                {
                     alarm_hour++;
                 }
             }
-            if (alarm_sec == SEC_PER_MIN) {
+            if (alarm_sec == SEC_PER_MIN)
+            {
                 /* wrap to next hour, minutes is not in don't care mode */
                 alarm_sec = 0;
                 alarm_hour++;
             }
-        } else if (cur_min > alarm_min) {
+        }
+        else if (cur_min > alarm_min)
+        {
             alarm_hour++;
         }
-    } else if (cur_hour == alarm_hour) {
-        if (alarm_min == -1) {
+    }
+    else if (cur_hour == alarm_hour)
+    {
+        if (alarm_min == -1)
+        {
             alarm_min = cur_min;
-            if (alarm_sec == -1) {
+            if (alarm_sec == -1)
+            {
                 alarm_sec = cur_sec + 1;
-            } else if (cur_sec > alarm_sec) {
+            }
+            else if (cur_sec > alarm_sec)
+            {
                 alarm_min++;
             }
 
-            if (alarm_sec == SEC_PER_MIN) {
+            if (alarm_sec == SEC_PER_MIN)
+            {
                 alarm_sec = 0;
                 alarm_min++;
             }
             /* wrap to next day, hour is not in don't care mode */
             alarm_min %= MIN_PER_HOUR;
-        } else if (cur_min == alarm_min) {
-            if (alarm_sec == -1) {
+        }
+        else if (cur_min == alarm_min)
+        {
+            if (alarm_sec == -1)
+            {
                 alarm_sec = cur_sec + 1;
             }
             /* wrap to next day, hours+minutes not in don't care mode */
@@ -377,19 +429,23 @@ static uint64_t get_next_alarm(MC146818RtcState *s)
     }
 
     /* values that are still don't care fire at the next min/sec */
-    if (alarm_min == -1) {
+    if (alarm_min == -1)
+    {
         alarm_min = 0;
     }
-    if (alarm_sec == -1) {
+    if (alarm_sec == -1)
+    {
         alarm_sec = 0;
     }
 
     /* keep values in range */
-    if (alarm_sec == SEC_PER_MIN) {
+    if (alarm_sec == SEC_PER_MIN)
+    {
         alarm_sec = 0;
         alarm_min++;
     }
-    if (alarm_min == MIN_PER_HOUR) {
+    if (alarm_min == MIN_PER_HOUR)
+    {
         alarm_min = 0;
         alarm_hour++;
     }
@@ -413,160 +469,204 @@ static void rtc_update_timer(void *opaque)
     rtc_update_time(s);
     s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
 
-    if (qemu_clock_get_ns(rtc_clock) >= s->next_alarm_time) {
+    if (qemu_clock_get_ns(rtc_clock) >= s->next_alarm_time)
+    {
         irqs |= REG_C_AF;
-        if (s->cmos_data[RTC_REG_B] & REG_B_AIE) {
+        if (s->cmos_data[RTC_REG_B] & REG_B_AIE)
+        {
             qemu_system_wakeup_request(QEMU_WAKEUP_REASON_RTC, NULL);
         }
     }
 
     new_irqs = irqs & ~s->cmos_data[RTC_REG_C];
     s->cmos_data[RTC_REG_C] |= irqs;
-    if ((new_irqs & s->cmos_data[RTC_REG_B]) != 0) {
+    if ((new_irqs & s->cmos_data[RTC_REG_B]) != 0)
+    {
         s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
         qemu_irq_raise(s->irq);
     }
     check_update_timer(s);
 }
 
-static void cmos_ioport_write(void *opaque, hwaddr addr,
-                              uint64_t data, unsigned size)
+static void cmos_write(RTCState *s, uint8_t cmos_index, uint8_t data)
 {
-    MC146818RtcState *s = opaque;
     uint32_t old_period;
     bool update_periodic_timer;
 
-    if ((addr & 1) == 0) {
-        s->cmos_index = data & 0x7f;
-    } else {
-        CMOS_DPRINTF("cmos: write index=0x%02x val=0x%02" PRIx64 "\n",
-                     s->cmos_index, data);
-        switch(s->cmos_index) {
-        case RTC_SECONDS_ALARM:
-        case RTC_MINUTES_ALARM:
-        case RTC_HOURS_ALARM:
-            s->cmos_data[s->cmos_index] = data;
+    CMOS_DPRINTF("cmos: write index=0x%02x val=0x%02" PRIx64 "\n",
+                 cmos_index, data);
+    switch (cmos_index)
+    {
+    case RTC_SECONDS_ALARM:
+    case RTC_MINUTES_ALARM:
+    case RTC_HOURS_ALARM:
+        s->cmos_data[cmos_index] = data;
+        check_update_timer(s);
+        break;
+    case RTC_IBM_PS2_CENTURY_BYTE:
+        cmos_index = RTC_CENTURY;
+        /* fall through */
+    case RTC_CENTURY:
+    case RTC_SECONDS:
+    case RTC_MINUTES:
+    case RTC_HOURS:
+    case RTC_DAY_OF_WEEK:
+    case RTC_DAY_OF_MONTH:
+    case RTC_MONTH:
+    case RTC_YEAR:
+        s->cmos_data[cmos_index] = data;
+        /* if in set mode, do not update the time */
+        if (rtc_running(s))
+        {
+            rtc_set_time(s);
             check_update_timer(s);
-            break;
-        case RTC_IBM_PS2_CENTURY_BYTE:
-            s->cmos_index = RTC_CENTURY;
-            /* fall through */
-        case RTC_CENTURY:
-        case RTC_SECONDS:
-        case RTC_MINUTES:
-        case RTC_HOURS:
-        case RTC_DAY_OF_WEEK:
-        case RTC_DAY_OF_MONTH:
-        case RTC_MONTH:
-        case RTC_YEAR:
-            s->cmos_data[s->cmos_index] = data;
-            /* if in set mode, do not update the time */
-            if (rtc_running(s)) {
-                rtc_set_time(s);
-                check_update_timer(s);
-            }
-            break;
-        case RTC_REG_A:
-            update_periodic_timer = (s->cmos_data[RTC_REG_A] ^ data) & 0x0f;
-            old_period = rtc_periodic_clock_ticks(s);
-
-            if ((data & 0x60) == 0x60) {
-                if (rtc_running(s)) {
-                    rtc_update_time(s);
-                }
-                /* What happens to UIP when divider reset is enabled is
-                 * unclear from the datasheet.  Shouldn't matter much
-                 * though.
-                 */
-                s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
-            } else if (((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) &&
-                    (data & 0x70)  <= 0x20) {
-                /* when the divider reset is removed, the first update cycle
-                 * begins one-half second later*/
-                if (!(s->cmos_data[RTC_REG_B] & REG_B_SET)) {
-                    s->offset = 500000000;
-                    rtc_set_time(s);
-                }
-                s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
-            }
-            /* UIP bit is read only */
-            s->cmos_data[RTC_REG_A] = (data & ~REG_A_UIP) |
-                (s->cmos_data[RTC_REG_A] & REG_A_UIP);
-
-            if (update_periodic_timer) {
-                periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
-                                      old_period, true);
-            }
-
-            check_update_timer(s);
-            break;
-        case RTC_REG_B:
-            update_periodic_timer = (s->cmos_data[RTC_REG_B] ^ data)
-                                       & REG_B_PIE;
-            old_period = rtc_periodic_clock_ticks(s);
-
-            if (data & REG_B_SET) {
-                /* update cmos to when the rtc was stopping */
-                if (rtc_running(s)) {
-                    rtc_update_time(s);
-                }
-                /* set mode: reset UIP mode */
-                s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
-                data &= ~REG_B_UIE;
-            } else {
-                /* if disabling set mode, update the time */
-                if ((s->cmos_data[RTC_REG_B] & REG_B_SET) &&
-                    (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20) {
-                    s->offset = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
-                    rtc_set_time(s);
-                }
-            }
-            /* if an interrupt flag is already set when the interrupt
-             * becomes enabled, raise an interrupt immediately.  */
-            if (data & s->cmos_data[RTC_REG_C] & REG_C_MASK) {
-                s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
-                qemu_irq_raise(s->irq);
-            } else {
-                s->cmos_data[RTC_REG_C] &= ~REG_C_IRQF;
-                qemu_irq_lower(s->irq);
-            }
-            s->cmos_data[RTC_REG_B] = data;
-
-            if (update_periodic_timer) {
-                periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
-                                      old_period, true);
-            }
-
-            check_update_timer(s);
-            break;
-        case RTC_REG_C:
-        case RTC_REG_D:
-            /* cannot write to them */
-            break;
-        default:
-            s->cmos_data[s->cmos_index] = data;
-            break;
         }
+        break;
+    case RTC_REG_A:
+        update_periodic_timer = (s->cmos_data[RTC_REG_A] ^ data) & 0x0f;
+        old_period = rtc_periodic_clock_ticks(s);
+
+        if ((data & 0x60) == 0x60)
+        {
+            if (rtc_running(s))
+            {
+                rtc_update_time(s);
+            }
+            /* What happens to UIP when divider reset is enabled is
+             * unclear from the datasheet.  Shouldn't matter much
+             * though.
+             */
+            s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
+        }
+        else if (((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) &&
+                 (data & 0x70) <= 0x20)
+        {
+            /* when the divider reset is removed, the first update cycle
+             * begins one-half second later*/
+            if (!(s->cmos_data[RTC_REG_B] & REG_B_SET))
+            {
+                s->offset = 500000000;
+                rtc_set_time(s);
+            }
+            s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
+        }
+        /* UIP bit is read only */
+        s->cmos_data[RTC_REG_A] = (data & ~REG_A_UIP) |
+                                  (s->cmos_data[RTC_REG_A] & REG_A_UIP);
+
+        if (update_periodic_timer)
+        {
+            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
+                                  old_period, true);
+        }
+
+        check_update_timer(s);
+        break;
+    case RTC_REG_B:
+        update_periodic_timer = (s->cmos_data[RTC_REG_B] ^ data) & REG_B_PIE;
+        old_period = rtc_periodic_clock_ticks(s);
+
+        if (data & REG_B_SET)
+        {
+            /* update cmos to when the rtc was stopping */
+            if (rtc_running(s))
+            {
+                rtc_update_time(s);
+            }
+            /* set mode: reset UIP mode */
+            s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
+            data &= ~REG_B_UIE;
+        }
+        else
+        {
+            /* if disabling set mode, update the time */
+            if ((s->cmos_data[RTC_REG_B] & REG_B_SET) &&
+                (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20)
+            {
+                s->offset = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
+                rtc_set_time(s);
+            }
+        }
+        /* if an interrupt flag is already set when the interrupt
+         * becomes enabled, raise an interrupt immediately.  */
+        if (data & s->cmos_data[RTC_REG_C] & REG_C_MASK)
+        {
+            s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
+            qemu_irq_raise(s->irq);
+        }
+        else
+        {
+            s->cmos_data[RTC_REG_C] &= ~REG_C_IRQF;
+            qemu_irq_lower(s->irq);
+        }
+        s->cmos_data[RTC_REG_B] = data;
+
+        if (update_periodic_timer)
+        {
+            periodic_timer_update(s, qemu_clock_get_ns(rtc_clock),
+                                  old_period, true);
+        }
+
+        check_update_timer(s);
+        break;
+    case RTC_REG_C:
+    case RTC_REG_D:
+        /* cannot write to them */
+        break;
+    default:
+        s->cmos_data[cmos_index] = data;
+        break;
+    }
+}
+
+static void cmos_ioport_write(void *opaque, hwaddr addr,
+                              uint64_t data, unsigned size)
+{
+    RTCState *s = opaque;
+    uint8_t bank;
+
+    switch (addr)
+    {
+    case 0:
+        s->cmos_index = data & 0x7f;
+        break;
+    case 1:
+        bank = (s->cmos_data[RTC_REG_A] & REG_A_DV0) == REG_A_DV0;
+        cmos_write(s, bank * 0x80 + s->cmos_index, data);
+        break;
+    case 2:
+        s->cmos_index_alt = data;
+        break;
+    case 3:
+        cmos_write(s, s->cmos_index_alt, data);
+        break;
     }
 }
 
 static inline int rtc_to_bcd(MC146818RtcState *s, int a)
 {
-    if (s->cmos_data[RTC_REG_B] & REG_B_DM) {
+    if (s->cmos_data[RTC_REG_B] & REG_B_DM)
+    {
         return a;
-    } else {
+    }
+    else
+    {
         return ((a / 10) << 4) | (a % 10);
     }
 }
 
 static inline int rtc_from_bcd(MC146818RtcState *s, int a)
 {
-    if ((a & 0xc0) == 0xc0) {
+    if ((a & 0xc0) == 0xc0)
+    {
         return -1;
     }
-    if (s->cmos_data[RTC_REG_B] & REG_B_DM) {
+    if (s->cmos_data[RTC_REG_B] & REG_B_DM)
+    {
         return a;
-    } else {
+    }
+    else
+    {
         return ((a >> 4) * 10) + (a & 0x0f);
     }
 }
@@ -576,9 +676,11 @@ static void rtc_get_time(MC146818RtcState *s, struct tm *tm)
     tm->tm_sec = rtc_from_bcd(s, s->cmos_data[RTC_SECONDS]);
     tm->tm_min = rtc_from_bcd(s, s->cmos_data[RTC_MINUTES]);
     tm->tm_hour = rtc_from_bcd(s, s->cmos_data[RTC_HOURS] & 0x7f);
-    if (!(s->cmos_data[RTC_REG_B] & REG_B_24H)) {
+    if (!(s->cmos_data[RTC_REG_B] & REG_B_24H))
+    {
         tm->tm_hour %= 12;
-        if (s->cmos_data[RTC_HOURS] & 0x80) {
+        if (s->cmos_data[RTC_HOURS] & 0x80)
+        {
             tm->tm_hour += 12;
         }
     }
@@ -608,10 +710,13 @@ static void rtc_set_cmos(MC146818RtcState *s, const struct tm *tm)
 
     s->cmos_data[RTC_SECONDS] = rtc_to_bcd(s, tm->tm_sec);
     s->cmos_data[RTC_MINUTES] = rtc_to_bcd(s, tm->tm_min);
-    if (s->cmos_data[RTC_REG_B] & REG_B_24H) {
+    if (s->cmos_data[RTC_REG_B] & REG_B_24H)
+    {
         /* 24 hour format */
         s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, tm->tm_hour);
-    } else {
+    }
+    else
+    {
         /* 12 hour format */
         int h = (tm->tm_hour % 12) ? tm->tm_hour % 12 : 12;
         s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, h);
@@ -637,7 +742,8 @@ static void rtc_update_time(MC146818RtcState *s)
     gmtime_r(&guest_sec, &ret);
 
     /* Is SET flag of Register B disabled? */
-    if ((s->cmos_data[RTC_REG_B] & REG_B_SET) == 0) {
+    if ((s->cmos_data[RTC_REG_B] & REG_B_SET) == 0)
+    {
         rtc_set_cmos(s, &ret);
     }
 }
@@ -646,14 +752,17 @@ static int update_in_progress(MC146818RtcState *s)
 {
     int64_t guest_nsec;
 
-    if (!rtc_running(s)) {
+    if (!rtc_running(s))
+    {
         return 0;
     }
-    if (timer_pending(s->update_timer)) {
+    if (timer_pending(s->update_timer))
+    {
         int64_t next_update_time = timer_expire_time_ns(s->update_timer);
         /* Latch UIP until the timer expires.  */
         if (qemu_clock_get_ns(rtc_clock) >=
-            (next_update_time - UIP_HOLD_LENGTH)) {
+            (next_update_time - UIP_HOLD_LENGTH))
+        {
             s->cmos_data[RTC_REG_A] |= REG_A_UIP;
             return 1;
         }
@@ -662,74 +771,97 @@ static int update_in_progress(MC146818RtcState *s)
     guest_nsec = get_guest_rtc_ns(s);
     /* UIP bit will be set at last 244us of every second. */
     if ((guest_nsec % NANOSECONDS_PER_SECOND) >=
-        (NANOSECONDS_PER_SECOND - UIP_HOLD_LENGTH)) {
+        (NANOSECONDS_PER_SECOND - UIP_HOLD_LENGTH))
+    {
         return 1;
     }
     return 0;
 }
 
+static uint8_t cmos_read(RTCState *s, uint8_t cmos_index)
+{
+    int ret;
+
+    switch (cmos_index)
+    {
+    case RTC_IBM_PS2_CENTURY_BYTE:
+        cmos_index = RTC_CENTURY;
+        /* fall through */
+    case RTC_CENTURY:
+    case RTC_SECONDS:
+    case RTC_MINUTES:
+    case RTC_HOURS:
+    case RTC_DAY_OF_WEEK:
+    case RTC_DAY_OF_MONTH:
+    case RTC_MONTH:
+    case RTC_YEAR:
+        /* if not in set mode, calibrate cmos before
+         * reading*/
+        if (rtc_running(s))
+        {
+            rtc_update_time(s);
+        }
+        ret = s->cmos_data[cmos_index];
+        break;
+    case RTC_REG_A:
+        ret = s->cmos_data[cmos_index];
+        if (update_in_progress(s))
+        {
+            ret |= REG_A_UIP;
+        }
+        break;
+    case RTC_REG_C:
+        ret = s->cmos_data[cmos_index];
+        qemu_irq_lower(s->irq);
+        s->cmos_data[RTC_REG_C] = 0x00;
+        if (ret & (REG_C_UF | REG_C_AF))
+        {
+            check_update_timer(s);
+        }
+
+        if (s->irq_coalesced &&
+            (s->cmos_data[RTC_REG_B] & REG_B_PIE) &&
+            s->irq_reinject_on_ack_count < RTC_REINJECT_ON_ACK_COUNT)
+        {
+            s->irq_reinject_on_ack_count++;
+            s->cmos_data[RTC_REG_C] |= REG_C_IRQF | REG_C_PF;
+            DPRINTF_C("cmos: injecting on ack\n");
+            if (rtc_policy_slew_deliver_irq(s))
+            {
+                s->irq_coalesced--;
+                DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
+                          s->irq_coalesced);
+            }
+        }
+        break;
+    default:
+        ret = s->cmos_data[cmos_index];
+        break;
+    }
+    CMOS_DPRINTF("cmos: read index=0x%02x val=0x%02x\n",
+                 cmos_index, ret);
+    return ret;
+}
+
 static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    MC146818RtcState *s = opaque;
-    int ret;
-    if ((addr & 1) == 0) {
-        return 0xff;
-    } else {
-        switch(s->cmos_index) {
-        case RTC_IBM_PS2_CENTURY_BYTE:
-            s->cmos_index = RTC_CENTURY;
-            /* fall through */
-        case RTC_CENTURY:
-        case RTC_SECONDS:
-        case RTC_MINUTES:
-        case RTC_HOURS:
-        case RTC_DAY_OF_WEEK:
-        case RTC_DAY_OF_MONTH:
-        case RTC_MONTH:
-        case RTC_YEAR:
-            /* if not in set mode, calibrate cmos before
-             * reading*/
-            if (rtc_running(s)) {
-                rtc_update_time(s);
-            }
-            ret = s->cmos_data[s->cmos_index];
-            break;
-        case RTC_REG_A:
-            ret = s->cmos_data[s->cmos_index];
-            if (update_in_progress(s)) {
-                ret |= REG_A_UIP;
-            }
-            break;
-        case RTC_REG_C:
-            ret = s->cmos_data[s->cmos_index];
-            qemu_irq_lower(s->irq);
-            s->cmos_data[RTC_REG_C] = 0x00;
-            if (ret & (REG_C_UF | REG_C_AF)) {
-                check_update_timer(s);
-            }
+    RTCState *s = opaque;
+    uint8_t bank;
 
-            if(s->irq_coalesced &&
-                    (s->cmos_data[RTC_REG_B] & REG_B_PIE) &&
-                    s->irq_reinject_on_ack_count < RTC_REINJECT_ON_ACK_COUNT) {
-                s->irq_reinject_on_ack_count++;
-                s->cmos_data[RTC_REG_C] |= REG_C_IRQF | REG_C_PF;
-                DPRINTF_C("cmos: injecting on ack\n");
-                if (rtc_policy_slew_deliver_irq(s)) {
-                    s->irq_coalesced--;
-                    DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
-                              s->irq_coalesced);
-                }
-            }
-            break;
-        default:
-            ret = s->cmos_data[s->cmos_index];
-            break;
-        }
-        CMOS_DPRINTF("cmos: read index=0x%02x val=0x%02x\n",
-                     s->cmos_index, ret);
-        return ret;
+    switch (addr)
+    {
+    case 0:
+        return 0xff;
+    case 1:
+        bank = (s->cmos_data[RTC_REG_A] & REG_A_DV0) == REG_A_DV0;
+        return cmos_read(s, bank * 0x80 + s->cmos_index);
+    case 2:
+        return 0xff;
+    case 3:
+        return cmos_read(s, s->cmos_index_alt);
     }
+    return 0;
 }
 
 void mc146818rtc_set_cmos_data(MC146818RtcState *s, int addr, int val)
@@ -772,7 +904,8 @@ static int rtc_post_load(void *opaque, int version_id)
 {
     MC146818RtcState *s = opaque;
 
-    if (version_id <= 2 || rtc_clock == QEMU_CLOCK_REALTIME) {
+    if (version_id <= 2 || rtc_clock == QEMU_CLOCK_REALTIME)
+    {
         rtc_set_time(s);
         s->offset = 0;
         check_update_timer(s);
@@ -783,16 +916,20 @@ static int rtc_post_load(void *opaque, int version_id)
      * so there is no need to update it after loading the vmstate.
      * Reading RTC here would misalign record and replay.
      */
-    if (replay_mode == REPLAY_MODE_NONE) {
+    if (replay_mode == REPLAY_MODE_NONE)
+    {
         uint64_t now = qemu_clock_get_ns(rtc_clock);
         if (now < s->next_periodic_time ||
-            now > (s->next_periodic_time + get_max_clock_jump())) {
+            now > (s->next_periodic_time + get_max_clock_jump()))
+        {
             periodic_timer_update(s, qemu_clock_get_ns(rtc_clock), s->period, false);
         }
     }
 
-    if (version_id >= 2) {
-        if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
+    if (version_id >= 2)
+    {
+        if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW)
+        {
             rtc_coalesced_timer_update(s);
         }
     }
@@ -810,11 +947,9 @@ static const VMStateDescription vmstate_rtc_irq_reinject_on_ack_count = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = rtc_irq_reinject_on_ack_count_needed,
-    .fields = (const VMStateField[]) {
+    .fields = (const VMStateField[]){
         VMSTATE_UINT16(irq_reinject_on_ack_count, MC146818RtcState),
-        VMSTATE_END_OF_LIST()
-    }
-};
+        VMSTATE_END_OF_LIST()}};
 
 static const VMStateDescription vmstate_rtc = {
     .name = "mc146818rtc",
@@ -822,13 +957,13 @@ static const VMStateDescription vmstate_rtc = {
     .minimum_version_id = 1,
     .pre_save = rtc_pre_save,
     .post_load = rtc_post_load,
-    .fields = (const VMStateField[]) {
+    .fields = (const VMStateField[]){
         VMSTATE_BUFFER(cmos_data, MC146818RtcState),
         VMSTATE_UINT8(cmos_index, MC146818RtcState),
-        VMSTATE_UNUSED(7*4),
+        VMSTATE_UNUSED(7 * 4),
         VMSTATE_TIMER_PTR(periodic_timer, MC146818RtcState),
         VMSTATE_INT64(next_periodic_time, MC146818RtcState),
-        VMSTATE_UNUSED(3*8),
+        VMSTATE_UNUSED(3 * 8),
         VMSTATE_UINT32_V(irq_coalesced, MC146818RtcState, 2),
         VMSTATE_UINT32_V(period, MC146818RtcState, 2),
         VMSTATE_UINT64_V(base_rtc, MC146818RtcState, 3),
@@ -836,13 +971,8 @@ static const VMStateDescription vmstate_rtc = {
         VMSTATE_INT64_V(offset, MC146818RtcState, 3),
         VMSTATE_TIMER_PTR_V(update_timer, MC146818RtcState, 3),
         VMSTATE_UINT64_V(next_alarm_time, MC146818RtcState, 3),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_rtc_irq_reinject_on_ack_count,
-        NULL
-    }
-};
+        VMSTATE_END_OF_LIST()},
+    .subsections = (const VMStateDescription *const[]){&vmstate_rtc_irq_reinject_on_ack_count, NULL}};
 
 /* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
    BIOS will read it and start S3 resume at POST Entry */
@@ -889,18 +1019,21 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
      * (at least until 2079...) for base_year = 1980, but will be set
      * correctly for base_year = 2000.
      */
-    if (s->base_year == 2000) {
+    if (s->base_year == 2000)
+    {
         s->base_year = 0;
     }
 
-    if (s->isairq >= ISA_NUM_IRQS) {
+    if (s->isairq >= ISA_NUM_IRQS)
+    {
         error_setg(errp, "Maximum value for \"irq\" is: %u", ISA_NUM_IRQS - 1);
         return;
     }
 
     rtc_set_date_from_host(isadev);
 
-    switch (s->lost_tick_policy) {
+    switch (s->lost_tick_policy)
+    {
     case LOST_TICK_POLICY_SLEW:
         s->coalesced_timer =
             timer_new_ns(rtc_clock, rtc_coalesced_timer, s);
@@ -919,7 +1052,7 @@ static void rtc_realizefn(DeviceState *dev, Error **errp)
     s->suspend_notifier.notify = rtc_notify_suspend;
     qemu_register_suspend_notifier(&s->suspend_notifier);
 
-    memory_region_init_io(&s->io, OBJECT(s), &cmos_ops, s, "rtc", 2);
+    memory_region_init_io(&s->io, OBJECT(s), &cmos_ops, s, "rtc", 4);
     isa_register_ioport(isadev, &s->io, s->io_base);
 
     /* register rtc 0x70 port for coalesced_pio */
@@ -948,9 +1081,12 @@ MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
     s = MC146818_RTC(isadev);
     qdev_prop_set_int32(dev, "base_year", base_year);
     isa_realize_and_unref(isadev, bus, &error_fatal);
-    if (intercept_irq) {
+    if (intercept_irq)
+    {
         qdev_connect_gpio_out(dev, 0, intercept_irq);
-    } else {
+    }
+    else
+    {
         isa_connect_gpio_out(isadev, 0, s->isairq);
     }
 
@@ -975,7 +1111,8 @@ static void rtc_reset_enter(Object *obj, ResetType type)
 
     /* Reason: VM do suspend self will set 0xfe
      * Reset any values other than 0xfe(Guest suspend case) */
-    if (s->cmos_data[0x0f] != 0xfe) {
+    if (s->cmos_data[0x0f] != 0xfe)
+    {
         s->cmos_data[0x0f] = 0x00;
     }
 
@@ -983,8 +1120,8 @@ static void rtc_reset_enter(Object *obj, ResetType type)
     s->cmos_data[RTC_REG_C] &= ~(REG_C_UF | REG_C_IRQF | REG_C_PF | REG_C_AF);
     check_update_timer(s);
 
-
-    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW) {
+    if (s->lost_tick_policy == LOST_TICK_POLICY_SLEW)
+    {
         s->irq_coalesced = 0;
         s->irq_reinject_on_ack_count = 0;
     }
@@ -1035,13 +1172,13 @@ static void rtc_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo mc146818rtc_info = {
-    .name          = TYPE_MC146818_RTC,
-    .parent        = TYPE_ISA_DEVICE,
+    .name = TYPE_MC146818_RTC,
+    .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(MC146818RtcState),
-    .class_init    = rtc_class_initfn,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
+    .class_init = rtc_class_initfn,
+    .interfaces = (InterfaceInfo[]){
+        {TYPE_ACPI_DEV_AML_IF},
+        {},
     },
 };
 

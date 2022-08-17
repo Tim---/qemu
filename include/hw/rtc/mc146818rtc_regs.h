@@ -51,6 +51,7 @@
 #define RTC_IBM_PS2_CENTURY_BYTE 0x37
 
 #define REG_A_UIP 0x80
+#define REG_A_DV0 0x10
 
 #define REG_B_SET  0x80
 #define REG_B_PIE  0x40
