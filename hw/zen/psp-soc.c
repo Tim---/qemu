@@ -7,8 +7,6 @@
 #include "hw/zen/psp-regs.h"
 #include "hw/zen/psp-smn-bridge.h"
 #include "hw/zen/psp-ht-bridge.h"
-#include "hw/zen/psp-fuses.h"
-#include "hw/zen/psp-dirty.h"
 #include "hw/zen/psp-timer.h"
 #include "hw/zen/ccp.h"
 
@@ -83,16 +81,6 @@ static void create_ht(PspSocState *s)
     psp_mmio_map(s, SYS_BUS_DEVICE(dev), 1, 0x04000000);
 }
 
-static void create_fuses(PspSocState *s, zen_codename codename)
-{
-    DeviceState *dev = qdev_new(TYPE_PSP_FUSES);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    MemoryRegion *region = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
-    memory_region_add_subregion(s->smn_region, 0x5d000, region);
-
-    psp_dirty_fuses(codename, dev);
-}
-
 static void create_timer(PspSocState *s, int i)
 {
     DeviceState *dev = qdev_new(TYPE_PSP_TIMER);
@@ -122,7 +110,6 @@ static void psp_soc_realize(DeviceState *dev, Error **errp)
     create_psp_regs(s, s->codename);
     create_smn(s);
     create_ht(s);
-    create_fuses(s, s->codename);
     create_ccp(s, s->codename);
 
     for(int i = 0; i < 2; i++) {
