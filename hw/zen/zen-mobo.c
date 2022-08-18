@@ -23,6 +23,8 @@
 #include "hw/zen/smn-misc.h"
 #include "hw/zen/zen-umc.h"
 #include "hw/zen/df.h"
+#include "hw/zen/psp-fuses.h"
+#include "hw/zen/psp-dirty.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -359,6 +361,15 @@ static void create_df(ZenMoboState *s)
     }
 }
 
+static void create_fuses(ZenMoboState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_PSP_FUSES);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x5d000, false);
+
+    psp_dirty_fuses(s->codename, dev);
+}
+
 DeviceState *zen_mobo_create(zen_codename codename, BlockBackend *blk)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
@@ -392,6 +403,7 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     create_smn_misc(s);
     create_umc(s);
     create_df(s);
+    create_fuses(s);
 }
 
 static Property zen_mobo_props[] = {

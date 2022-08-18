@@ -12,6 +12,7 @@
 #include "hw/zen/zen-utils.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/qdev-properties.h"
+#include "hw/zen/apob.h"
 
 struct PcZenMachineClass {
     X86MachineClass parent;
@@ -48,6 +49,13 @@ static void pc_zen_simulate_psp_boot(PcZenMachineState *mms, BlockBackend *blk)
     address_space_write(&address_space_memory, bin_dest, MEMTXATTRS_UNSPECIFIED, buf, bin_size);
 
     mms->seg_base = bin_dest + bin_size - 0x10000;
+
+    uint64_t apob_offset;
+    uint32_t apob_size;
+    uint64_t apob_dest;
+    assert(zen_rom_get_bios_entry(&infos, AMD_BIOS_APOB, &apob_offset, &apob_size, &apob_dest));
+
+    create_apob(apob_dest, mms->codename);
 }
 
 static void pc_zen_machine_reset(MachineState *machine)

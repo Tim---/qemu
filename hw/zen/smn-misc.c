@@ -24,6 +24,14 @@ static uint64_t smn_misc_read(void *opaque, hwaddr offset, unsigned size)
     uint64_t res = 0;
 
     switch(offset) {
+    case 0x5a81c:
+        /*
+        summit-ridge/raven-ridge:
+            bits 3-0: CoreCount minus one
+            bits 7-4: ComplexCount minus one
+            bit    8: ThreadingDisabled
+        */
+        return 0x100;
     case 0x5a86c:
         return zen_get_cpuid(s->codename);
     case 0x5a08c:

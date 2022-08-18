@@ -9,6 +9,30 @@
 
 /* Fuses */
 
+static void psp_dirty_core_dis_by_fuse(zen_codename codename, DeviceState *dev)
+{
+    /*
+    CoreDisByFuse register
+    Guesses:
+        bits 0-7: bitmap of disabled cores
+        bit 8: enable hyperthreading
+    
+    We only enable the first core
+    */
+    switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+        psp_fuses_write32(dev, 0x25c, 0x000000fe);
+        break;
+    case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
+        psp_fuses_write32(dev, 0x254, 0x000000fe);
+        break;
+    default:
+        break;
+    }
+}
+
 void psp_dirty_fuses(zen_codename codename, DeviceState *dev)
 {
     switch(codename) {
@@ -20,6 +44,8 @@ void psp_dirty_fuses(zen_codename codename, DeviceState *dev)
     default:
         break;
     }
+
+    psp_dirty_core_dis_by_fuse(codename, dev);
 }
 
 void psp_dirty_create_mp2_ram(MemoryRegion *smn, zen_codename codename)
