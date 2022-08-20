@@ -12,33 +12,53 @@ struct SmuState {
     zen_codename codename;
     MemoryRegion regs;
 
+    /* Mp1FWFlagsReg */
     uint32_t smu_ok_offset;
 
-    uint32_t mb_cmd_offset;
-    uint32_t mb_status_offset;
-    uint32_t mb_data_offset;
+    /* Mailbox 1 */
+    uint32_t mb1_cmd_offset;
+    uint32_t mb1_status_offset;
+    uint32_t mb1_data_offset;
 
-    uint32_t cmd;
-    uint32_t status;
-    uint32_t data[6];
+    uint32_t mb1_cmd;
+    uint32_t mb1_status;
+    uint32_t mb1_data[6];
+
+    /* Mailbox 2 */
+    uint32_t mb2_cmd_offset;
+    uint32_t mb2_status_offset;
+    uint32_t mb2_data_offset;
+
+    uint32_t mb2_cmd;
+    uint32_t mb2_status;
+    uint32_t mb2_data;
 };
 
-static void smu_execute(SmuState *s)
+static void smu_mb1_execute(SmuState *s)
 {
     qemu_log_mask(LOG_UNIMP, "%s: execute\n", __func__);
-    s->status = 1;
+    s->mb1_status = 1;
+}
+
+static void smu_mb2_execute(SmuState *s)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: execute (cmd=0x%x, data=0x%x)\n", __func__, s->mb2_cmd, s->mb2_data);
+    s->mb2_status = 1;
+    s->mb2_data = 0;
 }
 
 static uint64_t smu_read(void *opaque, hwaddr addr, unsigned size)
 {
     SmuState *s = SMU(opaque);
 
-    if(addr == 0x704) {
+    if(addr == s->smu_ok_offset) {
         return 1;
-    } else if(addr == s->smu_ok_offset) {
-        return 1;
-    } else if(addr == s->mb_status_offset) {
-        return s->status;
+    } else if(addr == s->mb1_status_offset) {
+        return s->mb1_status;
+    } else if(addr == s->mb2_status_offset) {
+        return s->mb2_status;
+    } else if(addr == s->mb2_data_offset) {
+        return s->mb2_data;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
@@ -52,11 +72,21 @@ static void smu_write(void *opaque, hwaddr addr,
 {
     SmuState *s = SMU(opaque);
 
-    if(addr == s->mb_cmd_offset) {
-        s->cmd = value;
-        smu_execute(s);
-    } else if(addr >= s->mb_data_offset && addr < s->mb_data_offset + 6 * 4) {
-        s->data[(addr - s->mb_data_offset) / 4] = value;
+    if(addr == s->mb1_cmd_offset) {
+        s->mb1_cmd = value;
+        smu_mb1_execute(s);
+    } else if(addr >= s->mb1_data_offset && addr < s->mb1_data_offset + 6 * 4) {
+        s->mb1_data[(addr - s->mb1_data_offset) / 4] = value;
+    } else if(addr == s->mb2_cmd_offset) {
+        s->mb2_cmd = value;
+        smu_mb2_execute(s);
+        return;
+    } else if(addr == s->mb2_status_offset) {
+        s->mb2_status = value;
+        return;
+    } else if(addr == s->mb2_data_offset) {
+        s->mb2_data = value;
+        return;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
@@ -91,61 +121,60 @@ static void smu_realize(DeviceState *dev, Error **errp)
 {
     SmuState *s = SMU(dev);
 
-    /* Mp1FWFlagsReg */
-    switch(s->codename) {
-    case CODENAME_SUMMIT_RIDGE:
-    case CODENAME_PINNACLE_RIDGE:
-        s->smu_ok_offset = 0x34;
-        break;
-    case CODENAME_RAVEN_RIDGE:
-    case CODENAME_PICASSO:
-        s->smu_ok_offset = 0x28;
-        break;
-    case CODENAME_MATISSE:
-    case CODENAME_VERMEER:
-    case CODENAME_LUCIENNE:
-    case CODENAME_RENOIR:
-    case CODENAME_CEZANNE:
-        s->smu_ok_offset = 0x24;
-        break;
-    default:
-        g_assert_not_reached();
-    }
+    s->mb2_data_offset = 0x700;
+    s->mb2_status_offset = 0x704;
 
     switch(s->codename) {
     case CODENAME_SUMMIT_RIDGE:
     case CODENAME_PINNACLE_RIDGE:
         /* SmuV9 */
-        s->mb_cmd_offset    = 0x528;
-        s->mb_status_offset = 0x564;
-        s->mb_data_offset   = 0x598;
+        s->smu_ok_offset = 0x34;
+
+        s->mb1_cmd_offset    = 0x528;
+        s->mb1_status_offset = 0x564;
+        s->mb1_data_offset   = 0x598;
+
+        s->mb2_cmd_offset   = 0x714;
         break;
     case CODENAME_RAVEN_RIDGE:
     case CODENAME_PICASSO:
         /* SmuV10 */
-        s->mb_cmd_offset    = 0x528;
-        s->mb_status_offset = 0x564;
-        s->mb_data_offset   = 0x998;
+        s->smu_ok_offset = 0x28;
+
+        s->mb1_cmd_offset    = 0x528;
+        s->mb1_status_offset = 0x564;
+        s->mb1_data_offset   = 0x998;
+
+        s->mb2_cmd_offset   = 0x714;
         break;
     case CODENAME_MATISSE:
     case CODENAME_VERMEER:
         /* SmuV11 */
-        s->mb_cmd_offset    = 0x530;
-        s->mb_status_offset = 0x57c;
-        s->mb_data_offset   = 0x9c4;
+        s->smu_ok_offset = 0x24;
+
+        s->mb1_cmd_offset    = 0x530;
+        s->mb1_status_offset = 0x57c;
+        s->mb1_data_offset   = 0x9c4;
+
+        s->mb2_cmd_offset   = 0x718;
         break;
     case CODENAME_LUCIENNE:
     case CODENAME_RENOIR:
     case CODENAME_CEZANNE:
         /* SmuV12 */
-        s->mb_cmd_offset    = 0x528;
-        s->mb_status_offset = 0x564;
-        s->mb_data_offset   = 0x998;
+        s->smu_ok_offset = 0x24;
+
+        s->mb1_cmd_offset    = 0x528;
+        s->mb1_status_offset = 0x564;
+        s->mb1_data_offset   = 0x998;
+
+        s->mb2_cmd_offset   = 0x71c;
         break;
     default:
         g_assert_not_reached();
     }
 
+    s->mb2_status = 1;
 }
 
 static Property psp_soc_props[] = {
