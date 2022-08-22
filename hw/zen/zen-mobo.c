@@ -343,6 +343,7 @@ static void create_umc(ZenMoboState *s)
 
     for(int i = 0; i < ARRAY_SIZE(addresses); i++) {
         DeviceState *dev = qdev_new(TYPE_ZEN_UMC);
+        qdev_prop_set_uint8(dev, "instance", i);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
         zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, addresses[i], false);
     }

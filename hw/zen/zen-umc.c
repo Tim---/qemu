@@ -3,16 +3,22 @@
 #include "hw/sysbus.h"
 #include "hw/zen/zen-umc.h"
 #include "hw/registerfields.h"
+#include "hw/zen/zen-pmu.h"
+#include "qapi/error.h"
+#include "hw/qdev-properties.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenUmcState, ZEN_UMC)
 
 struct ZenUmcState {
     SysBusDevice parent_obj;
+    uint8_t instance;
 
     MemoryRegion region;
     uint32_t indirect_addr;
     uint32_t indirect_data;
     uint32_t storage[0x2000/4];
+
+    DeviceState *pmu;
 };
 
 REG32(CTRL_EMU_TYPE,         0x1050)
@@ -35,21 +41,6 @@ REG32(CTRL_PMU_ADDR,         0x1800) /* BFDctAddlOffsetReg, D18F2x98_dct[0] */
 REG32(CTRL_PMU_DATA,         0x1804) /* BFDctAddlDataReg, D18F2x9C_dct[0] */
 REG32(CTRL_PMU_STATUS,       0x1808) /* BFDctAddlStatusReg ? */
 
-static uint32_t zen_pmu_read(uint32_t addr)
-{
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                  "(offset 0x%x)\n",
-                  __func__, addr);
-    return 0;
-}
-
-static void zen_pmu_write(uint32_t addr, uint32_t data)
-{
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
-                  "(offset 0x%x, value 0x%x)\n",
-                  __func__, addr, data);
-}
-
 static uint64_t zen_umc_read(void *opaque, hwaddr offset, unsigned size)
 {
     ZenUmcState *s = ZEN_UMC(opaque);
@@ -61,7 +52,7 @@ static uint64_t zen_umc_read(void *opaque, hwaddr offset, unsigned size)
         assert(FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, ACCESS_WRITE) == 0);
         assert(FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, AUTO_INCREMENT) == 0);
         uint32_t pmu_offset = FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, OFFSET);
-        s->indirect_data = zen_pmu_read(pmu_offset);
+        s->indirect_data = zen_pmu_read(s->pmu, pmu_offset);
         return s->indirect_data;
     case A_CTRL_PMU_STATUS:
         return 1; /* Ready */
@@ -83,7 +74,7 @@ static void zen_umc_write(void *opaque, hwaddr offset,
 
         if(FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, ACCESS_WRITE) == 1) {
             uint32_t pmu_offset = FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, OFFSET);
-            zen_pmu_write(pmu_offset, s->indirect_data);
+            zen_pmu_write(s->pmu, pmu_offset, s->indirect_data);
 
             if(FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, AUTO_INCREMENT) == 1) {
                 pmu_offset++;
@@ -97,7 +88,7 @@ static void zen_umc_write(void *opaque, hwaddr offset,
         if(FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, ACCESS_WRITE) == 1) {
             uint32_t pmu_offset = FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, OFFSET);
             if(FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, AUTO_INCREMENT) == 1) {
-                zen_pmu_write(pmu_offset, s->indirect_data);
+                zen_pmu_write(s->pmu, pmu_offset, s->indirect_data);
                 pmu_offset++;
                 s->indirect_addr = FIELD_DP32(s->indirect_addr, CTRL_PMU_ADDR, OFFSET, pmu_offset);
             }
@@ -128,7 +119,16 @@ static void zen_umc_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->region, OBJECT(s), &zen_umc_ops, s,
                           "zen-umc", 0x2000);
     sysbus_init_mmio(sbd, &s->region);
+
+    s->pmu = qdev_new(TYPE_ZEN_PMU);
+    qdev_prop_set_uint8(s->pmu, "instance", s->instance);
+    qdev_realize_and_unref(s->pmu, NULL, &error_fatal);
 }
+
+static Property zen_umc_props[] = {
+    DEFINE_PROP_UINT8("instance", ZenUmcState, instance, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
 
 static void zen_umc_class_init(ObjectClass *oc, void *data)
 {
@@ -136,6 +136,7 @@ static void zen_umc_class_init(ObjectClass *oc, void *data)
 
     dc->realize = zen_umc_realize;
     dc->desc = "Zen UMC";
+    device_class_set_props(dc, zen_umc_props);
 }
 
 static const TypeInfo zen_umc_type_info = {
