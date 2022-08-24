@@ -7,6 +7,7 @@
 #include "qom/object.h"
 #include "hw/zen/smn-misc.h"
 #include "hw/zen/zen-cpuid.h"
+#include "hw/zen/zen-utils.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(SmnMiscState, SMN_MISC)
 
@@ -71,6 +72,43 @@ static const MemoryRegionOps smn_misc_ops = {
     .write = smn_misc_write,
 };
 
+
+static void add_region(SmnMiscState *s, const char *name, hwaddr addr, uint64_t size)
+{
+    MemoryRegion *region = g_malloc0(sizeof(*region));
+    create_region_with_unimpl(region, OBJECT(s), name, size);
+    memory_region_add_subregion(&s->region, addr, region);
+
+}
+
+static void create_dxio(SmnMiscState *s)
+{
+    if(s->codename != CODENAME_SUMMIT_RIDGE)
+        return;
+
+    // These regions are the GMI PCS regions (Physical Coding Sublayer)
+    for(int ld = 0; ld < 2; ld++) {
+        hwaddr base = 0x12000000 + ld * 0x100000;
+
+        g_autofree char *name = g_strdup_printf("XGMI_A%d.PCS", ld);
+        add_region(s, name, base + 0x0b000, 0x1000);
+
+        for(int kpnp = 0; kpnp < 5; kpnp++) {
+            g_autofree char *name2 = g_strdup_printf("XGMI_A%d.PNP%d", ld, kpnp);
+            add_region(s, name2, base + kpnp * 0x20000 + 0x9800, 0x1000);
+        }
+    }
+
+    // Are these PCS regions too ? They have the same watchdog
+    for(int ld = 0; ld < 4; ld++) {
+        hwaddr base = 0x11a00000 + ld * 0x100000;
+
+        g_autofree char *name = g_strdup_printf("XGMI_B%d.PCS", ld);
+        add_region(s, name, base + 0x51000, 0x1000);
+    }
+
+}
+
 static void smn_misc_init(Object *obj)
 {
 }
@@ -84,6 +122,8 @@ static void smn_misc_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->region, OBJECT(s), &smn_misc_ops, s,
                           "smn-misc", 0x100000000);
     sysbus_init_mmio(sbd, &s->region);
+
+    create_dxio(s);
 }
 
 static Property smn_misc_props[] = {
