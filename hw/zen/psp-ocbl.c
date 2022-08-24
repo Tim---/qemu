@@ -52,31 +52,6 @@ static void create_config_cezanne(AddressSpace *as, uint32_t addr)
     address_space_stb(as, addr + 0xb, 1, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
-static void psp_create_config(AddressSpace *as, zen_codename codename)
-{
-    switch(codename) {
-    case CODENAME_SUMMIT_RIDGE:
-    case CODENAME_PINNACLE_RIDGE:
-    case CODENAME_RAVEN_RIDGE:
-    case CODENAME_PICASSO:
-        create_config(as, 0x3fa50);
-        break;
-    case CODENAME_MATISSE:
-    case CODENAME_VERMEER:
-        create_config(as, 0x4fd50);
-        break;
-    case CODENAME_LUCIENNE:
-    case CODENAME_RENOIR:
-        create_config_lucienne_renoir(as, 0x4fd50);
-        break;
-    case CODENAME_CEZANNE:
-        create_config_cezanne(as, 0x4fd50);
-        break;
-    default:
-        g_assert_not_reached();
-    }
-}
-
 static uint32_t get_psp_dir_addr(zen_codename codename)
 {
     switch(codename) {
@@ -91,6 +66,33 @@ static uint32_t get_psp_dir_addr(zen_codename codename)
     case CODENAME_RENOIR:
     case CODENAME_CEZANNE:
         return 0x4f000;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static void psp_create_config(AddressSpace *as, zen_codename codename)
+{
+    uint32_t psp_dir_addr = get_psp_dir_addr(codename);
+
+    switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+    case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
+        create_config(as, psp_dir_addr + 0xa50);
+        break;
+    case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
+        create_config(as, psp_dir_addr + 0xd50);
+        break;
+    case CODENAME_LUCIENNE:
+    case CODENAME_RENOIR:
+        create_config_lucienne_renoir(as, psp_dir_addr + 0xd50);
+        break;
+    case CODENAME_CEZANNE:
+        create_config_cezanne(as, psp_dir_addr + 0xd50);
+        break;
     default:
         g_assert_not_reached();
     }
