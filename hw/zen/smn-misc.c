@@ -145,6 +145,26 @@ static void create_dxio_matisse(SmnMiscState *s)
 
 }
 
+static void create_unknown_summit(SmnMiscState *s)
+{
+    uint8_t nodes[] = {
+        0x01, 0xff, // these two are special ?
+        0x03, 0x04, 0x05, 0x06, 0x07, 0x0a, 0x0d, 0x13,
+        0x14, 0x18, 0x1c, 0x24, 0x25, 0x27, 0x2d, 0x2e,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x42, 0x46,
+        0x47, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56,
+        0x57, 0x5a, 0x5b, 0x64, 0x6c, 0x6d, 0x6e, 0x7c,
+        0x80, 0x81, 0x90, 0x96, 0x97, 0xa8, 0xaa, 0xb0,
+        0xb1, 0xd8, 0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5,
+        0xe6
+    };
+    for(int i = 0; i < ARRAY_SIZE(nodes); i++) {
+        uint8_t node = nodes[i];
+        add_region_printf(s, "misc_node_a%02x", 0x1000000 + node * 0x1000, 0x1000, node);
+        add_region_printf(s, "misc_node_b%02x", 0x2f00000 + node * 0x400, 0x400, node);
+    }
+}
+
 static void create_dxio(SmnMiscState *s)
 {
     switch(s->codename) {
@@ -155,6 +175,18 @@ static void create_dxio(SmnMiscState *s)
     case CODENAME_MATISSE:
     case CODENAME_VERMEER:
         create_dxio_matisse(s);
+        break;
+    default:
+        break;
+    }
+}
+
+static void create_unknown_blocks(SmnMiscState *s)
+{
+    switch(s->codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+        create_unknown_summit(s);
         break;
     default:
         break;
@@ -176,6 +208,7 @@ static void smn_misc_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->region);
 
     create_dxio(s);
+    create_unknown_blocks(s);
 }
 
 static Property smn_misc_props[] = {
