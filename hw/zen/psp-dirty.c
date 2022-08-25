@@ -77,6 +77,7 @@ void psp_dirty_create_pc_ram(MemoryRegion *ht, MemoryRegion *smn, zen_codename c
 {
     switch(codename) {
     case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
         create_ram(ht, "test-ram", 0xfffdf7000000, 0x400);
         create_ram(ht, "apob", 0x04000000, 0x10000);
         create_ram(smn, "apob2", 0x03f40000, 0x10000);
