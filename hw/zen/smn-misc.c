@@ -89,9 +89,7 @@ static void add_region_printf(SmnMiscState *s, const char *fmt, hwaddr addr, uin
     int res = vasprintf(&name, fmt, args);
     assert(res != -1);
 
-    MemoryRegion *region = g_malloc0(sizeof(*region));
-    create_region_with_unimpl(region, OBJECT(s), name, size);
-    memory_region_add_subregion(&s->region, addr, region);
+    add_region(s, name, addr, size);
 
     va_end(args);
 }
@@ -102,21 +100,18 @@ static void create_dxio_summit(SmnMiscState *s)
     for(int ld = 0; ld < 2; ld++) {
         hwaddr base = 0x12000000 + ld * 0x100000;
 
-        g_autofree char *name = g_strdup_printf("XGMI_A%d.PCS", ld);
-        add_region(s, name, base + 0x0b000, 0x1000);
+        add_region_printf(s, "XGMI_A%d.PCS", base + 0x0b000, 0x1000, ld);
 
         for(int kpnp = 0; kpnp < 5; kpnp++) {
-            g_autofree char *name2 = g_strdup_printf("XGMI_A%d.PNP%d", ld, kpnp);
-            add_region(s, name2, base + kpnp * 0x20000 + 0x9800, 0x1000);
+            // registers: 0x38, 0x60, 0x64
+            add_region_printf(s, "XGMI_A%d.PNP%d", base + kpnp * 0x20000 + 0x9800, 0x1000, ld, kpnp);
         }
     }
 
     // Are these PCS regions too ? They have the same watchdog
     for(int ld = 0; ld < 4; ld++) {
         hwaddr base = 0x11a00000 + ld * 0x100000;
-
-        g_autofree char *name = g_strdup_printf("XGMI_B%d.PCS", ld);
-        add_region(s, name, base + 0x51000, 0x1000);
+        add_region_printf(s, "XGMI_B%d.PCS", base + 0x51000, 0x1000, ld);
     }
 }
 
@@ -154,6 +149,7 @@ static void create_dxio(SmnMiscState *s)
 {
     switch(s->codename) {
     case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
         create_dxio_summit(s);
         break;
     case CODENAME_MATISSE:
