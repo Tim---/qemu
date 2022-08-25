@@ -67,42 +67,6 @@ static void do_fica_write(uint8_t node, uint8_t func, uint16_t reg, uint32_t dat
                   __func__, node, func, reg, data);
 }
 
-static uint32_t fica_read(DfState *s, hwaddr addr)
-{
-    uint32_t node = FIELD_EX32(addr, FICA_ADDR, NODE);
-    uint32_t func = FIELD_EX32(addr, FICA_ADDR, FUNC); 
-    uint32_t reg = FIELD_EX32(addr, FICA_ADDR, REG) << 2;
-
-    return do_fica_read(node, func, reg);
-}
-
-static void fica_write(DfState *s, hwaddr addr, uint32_t data)
-{
-    uint32_t node = FIELD_EX32(addr, FICA_ADDR, NODE);
-    uint32_t func = FIELD_EX32(addr, FICA_ADDR, FUNC); 
-    uint32_t reg = FIELD_EX32(addr, FICA_ADDR, REG) << 2;
-
-    do_fica_write(node, func, reg, data);
-}
-
-static uint32_t fica2_read(DfState *s, hwaddr addr)
-{
-    uint32_t node = FIELD_EX32(addr, FICA2_ADDR, NODE);
-    uint32_t func = FIELD_EX32(addr, FICA2_ADDR, FUNC); 
-    uint32_t reg = FIELD_EX32(addr, FICA2_ADDR, REG) << 2;
-
-    return do_fica_read(node, func, reg);
-}
-
-static void fica2_write(DfState *s, hwaddr addr, uint32_t data)
-{
-    uint32_t node = FIELD_EX32(addr, FICA2_ADDR, NODE);
-    uint32_t func = FIELD_EX32(addr, FICA2_ADDR, FUNC); 
-    uint32_t reg = FIELD_EX32(addr, FICA2_ADDR, REG) << 2;
-
-    do_fica_write(node, func, reg, data);
-}
-
 static uint64_t df_read(DfState *s, int fun, hwaddr offset, unsigned size)
 {
     uint64_t res = 0;
@@ -115,9 +79,29 @@ static uint64_t df_read(DfState *s, int fun, hwaddr offset, unsigned size)
         res = 0x00010001;
         break;
     case A_FICA_DATA0:
-        return fica_read(s, s->fica_addr);
+        return do_fica_read(
+            FIELD_EX32(s->fica_addr, FICA_ADDR, NODE),
+            FIELD_EX32(s->fica_addr, FICA_ADDR, FUNC),
+            FIELD_EX32(s->fica_addr, FICA_ADDR, REG) * 4
+        );
+    case A_FICA_DATA1:
+        return do_fica_read(
+            FIELD_EX32(s->fica_addr, FICA_ADDR, NODE),
+            FIELD_EX32(s->fica_addr, FICA_ADDR, FUNC),
+            FIELD_EX32(s->fica_addr, FICA_ADDR, REG) * 4 + 4
+        );
     case A_FICA2_DATA0:
-        return fica2_read(s, s->fica2_addr);
+        return do_fica_read(
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, NODE),
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, FUNC),
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, REG) * 4
+        );
+    case A_FICA2_DATA1:
+        return do_fica_read(
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, NODE),
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, FUNC),
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, REG) * 4 + 4
+        );
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(size %d, offset D18F%dx%lx)\n",
@@ -137,13 +121,39 @@ static void df_write(DfState *s, int fun, hwaddr offset,
     case A_FICA2_ADDR:
         s->fica2_addr = data;
         assert(FIELD_EX32(s->fica2_addr, FICA2_ADDR, RUN) == 1);
-        assert(FIELD_EX32(s->fica2_addr, FICA2_ADDR, LARGE) == 0);
+        //assert(FIELD_EX32(s->fica2_addr, FICA2_ADDR, LARGE) == 0);
         return;
     case A_FICA_DATA0:
-        fica_write(s, s->fica_addr, data);
+        do_fica_write(
+            FIELD_EX32(s->fica_addr, FICA_ADDR, NODE),
+            FIELD_EX32(s->fica_addr, FICA_ADDR, FUNC),
+            FIELD_EX32(s->fica_addr, FICA_ADDR, REG) * 4,
+            data
+        );
+        return;
+    case A_FICA_DATA1:
+        do_fica_write(
+            FIELD_EX32(s->fica_addr, FICA_ADDR, NODE),
+            FIELD_EX32(s->fica_addr, FICA_ADDR, FUNC),
+            FIELD_EX32(s->fica_addr, FICA_ADDR, REG) * 4 + 4,
+            data
+        );
         return;
     case A_FICA2_DATA0:
-        fica2_write(s, s->fica2_addr, data);
+        do_fica_write(
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, NODE),
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, FUNC),
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, REG) * 4,
+            data
+        );
+        return;
+    case A_FICA2_DATA1:
+        do_fica_write(
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, NODE),
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, FUNC),
+            FIELD_EX32(s->fica2_addr, FICA2_ADDR, REG) * 4 + 4,
+            data
+        );
         return;
     }
 
