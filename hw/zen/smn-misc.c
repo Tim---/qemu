@@ -100,18 +100,18 @@ static void create_dxio_summit(SmnMiscState *s)
     for(int ld = 0; ld < 2; ld++) {
         hwaddr base = 0x12000000 + ld * 0x100000;
 
-        add_region_printf(s, "XGMI_A%d.PCS", base + 0x0b000, 0x1000, ld);
+        add_region_printf(s, "misc_xgmi_a%d.pcs", base + 0x0b000, 0x1000, ld);
 
         for(int kpnp = 0; kpnp < 5; kpnp++) {
             // registers: 0x38, 0x60, 0x64
-            add_region_printf(s, "XGMI_A%d.PNP%d", base + kpnp * 0x20000 + 0x9800, 0x1000, ld, kpnp);
+            add_region_printf(s, "misc_xgmi_a%d.pnp%d", base + kpnp * 0x20000 + 0x9800, 0x1000, ld, kpnp);
         }
     }
 
     // Are these PCS regions too ? They have the same watchdog
     for(int ld = 0; ld < 4; ld++) {
         hwaddr base = 0x11a00000 + ld * 0x100000;
-        add_region_printf(s, "XGMI_B%d.PCS", base + 0x51000, 0x1000, ld);
+        add_region_printf(s, "misc_xgmi_b%d.pcs", base + 0x51000, 0x1000, ld);
     }
 }
 
