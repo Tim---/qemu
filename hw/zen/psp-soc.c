@@ -8,6 +8,7 @@
 #include "hw/zen/psp-smn-bridge.h"
 #include "hw/zen/psp-ht-bridge.h"
 #include "hw/zen/psp-timer.h"
+#include "hw/zen/psp-dirty.h"
 #include "hw/zen/ccp.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(PspSocState, PSP_SOC)
@@ -115,6 +116,8 @@ static void psp_soc_realize(DeviceState *dev, Error **errp)
     for(int i = 0; i < 2; i++) {
         create_timer(s, i);
     }
+
+    psp_dirty_create_pc_ram(s->ht_region, s->smn_region, s->codename);
 }
 
 static Property psp_soc_props[] = {
