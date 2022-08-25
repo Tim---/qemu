@@ -161,6 +161,7 @@ PspRegisterLoc locs_raven[] = {
 PspRegisterLoc locs_picasso[] = {
     LOC(PRIVATE, 0x4c, bootrom_revid),
     LOC(PRIVATE, 0xf0, postcode),
+    LOC(PUBLIC,  0x3c, debug_serial),
     LOC_END
 };
 
