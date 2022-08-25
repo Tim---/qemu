@@ -4,5 +4,6 @@
 void psp_dirty_fuses(zen_codename codename, DeviceState *dev);
 void psp_dirty_create_mp2_ram(MemoryRegion *smn, zen_codename codename);
 void psp_dirty_create_smu_firmware(MemoryRegion *smn, zen_codename codename);
+void psp_dirty_create_pc_ram(MemoryRegion *ht, MemoryRegion *smn, zen_codename codename);
 
 #endif
