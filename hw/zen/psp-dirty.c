@@ -78,13 +78,21 @@ void psp_dirty_create_pc_ram(MemoryRegion *ht, MemoryRegion *smn, zen_codename c
     switch(codename) {
     case CODENAME_RAVEN_RIDGE:
     case CODENAME_PICASSO:
-        create_ram(ht, "test-ram", 0xfffdf7000000, 0x400);
-        create_ram(ht, "apob", 0x04000000, 0x10000);
-        create_ram(smn, "apob2", 0x03f40000, 0x10000);
-        create_ram(ht, "smu-fw-bis", 0xfffdfb800000, 0x40000);
-        create_ram(ht, "smu-fw2-bis", 0xfffdfb840000, 0x40000);
-        create_ram(ht, "bios", 0x09d80000, 0x280000);
-        create_ram(ht, "bios-dir", 0x0a000000, 0x400);
+        create_ram(smn, "apob2",        0x03f40000, 0x10000);
+
+        create_ram(ht, "apob",          0x000004000000, 0x10000);
+        create_ram(ht, "bios",          0x000009d80000, 0x280000);
+        create_ram(ht, "bios-dir",      0x00000a000000, 0x400);
+        create_ram(ht, "test-ram",      0xfffdf7000000, 0x400);
+
+        // There's probably a lot of RAM here...
+        // But where does 0xfffdfb* map ?
+        create_ram(ht, "drivers",       0xfffdfb000000, 0x40000);
+        create_ram(ht, "secured-os",    0xfffdfb040000, 0x40000);
+        create_ram(ht, "nvram",         0xfffdfb7b0000, 0x20000);
+        create_ram(ht, "trustlets",     0xfffdfb7d0000, 0x20000);
+        create_ram(ht, "smu-fw-bis",    0xfffdfb800000, 0x40000);
+        create_ram(ht, "smu-fw2-bis",   0xfffdfb840000, 0x40000);
 
         break;
     default:
