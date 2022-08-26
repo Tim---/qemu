@@ -15,6 +15,7 @@ struct DfState {
     MemoryRegion regs;
     uint32_t fica_addr;
     uint32_t fica2_addr;
+    uint32_t mbat_ind_addr;
     PCIBus *bus;
 };
 
@@ -50,6 +51,26 @@ REG32(FICA2_ADDR,  FUN_REG(4, 0x50))
     FIELD(FICA2_ADDR, RUN,    0, 2) /* must be one */
 REG32(FICA2_DATA0, FUN_REG(4, 0x80))
 REG32(FICA2_DATA1, FUN_REG(4, 0x84))
+
+/* MBAT entries ? for >=Zen2 */
+REG32(MBAT_IND_ADDR, FUN_REG(6, 0x240))
+REG32(MBAT_IND_DATA, FUN_REG(6, 0x244))
+
+static uint32_t mbat_ind_read(uint32_t addr)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented read  "
+                  "(addr %x)\n",
+                  __func__, addr);
+    
+    return 0;
+}
+
+static void mbat_ind_write(uint32_t addr, uint32_t data)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented write "
+                  "(addr %x, value 0x%x)\n",
+                  __func__, addr, data);
+}
 
 static uint32_t do_fica_read(uint8_t node, uint8_t func, uint16_t reg)
 {
@@ -102,6 +123,8 @@ static uint64_t df_read(DfState *s, int fun, hwaddr offset, unsigned size)
             FIELD_EX32(s->fica2_addr, FICA2_ADDR, FUNC),
             FIELD_EX32(s->fica2_addr, FICA2_ADDR, REG) * 4 + 4
         );
+    case A_MBAT_IND_DATA:
+        return mbat_ind_read(s->mbat_ind_addr);
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(size %d, offset D18F%dx%lx)\n",
@@ -154,6 +177,12 @@ static void df_write(DfState *s, int fun, hwaddr offset,
             FIELD_EX32(s->fica2_addr, FICA2_ADDR, REG) * 4 + 4,
             data
         );
+        return;
+    case A_MBAT_IND_ADDR:
+        s->mbat_ind_addr = data;
+        return;
+    case A_MBAT_IND_DATA:
+        mbat_ind_write(s->mbat_ind_addr, data);
         return;
     }
 
