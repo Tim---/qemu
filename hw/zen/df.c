@@ -59,7 +59,7 @@ REG32(MBAT_IND_DATA, FUN_REG(6, 0x244))
 static uint32_t mbat_ind_read(uint32_t addr)
 {
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented read  "
-                  "(addr %x)\n",
+                  "(addr 0x%x)\n",
                   __func__, addr);
     
     return 0;
@@ -68,7 +68,7 @@ static uint32_t mbat_ind_read(uint32_t addr)
 static void mbat_ind_write(uint32_t addr, uint32_t data)
 {
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented write "
-                  "(addr %x, value 0x%x)\n",
+                  "(addr 0x%x, value 0x%x)\n",
                   __func__, addr, data);
 }
 
