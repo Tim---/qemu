@@ -75,6 +75,10 @@ void psp_dirty_create_smu_firmware(MemoryRegion *smn, zen_codename codename)
 
 void psp_dirty_create_pc_ram(MemoryRegion *ht, MemoryRegion *smn, zen_codename codename)
 {
+    create_ram(ht, "test-ram",      0xfffdf7000000, 0x10000);
+    /* used for SMU, Tee, nvram... */
+    create_ram(ht, "ram2",          0xfffdfb000000, 0x1000000);
+
     switch(codename) {
     case CODENAME_RAVEN_RIDGE:
     case CODENAME_PICASSO:
@@ -83,17 +87,25 @@ void psp_dirty_create_pc_ram(MemoryRegion *ht, MemoryRegion *smn, zen_codename c
         create_ram(ht, "apob",          0x000004000000, 0x10000);
         create_ram(ht, "bios",          0x000009d80000, 0x280000);
         create_ram(ht, "bios-dir",      0x00000a000000, 0x400);
-        create_ram(ht, "test-ram",      0xfffdf7000000, 0x400);
 
-        // There's probably a lot of RAM here...
-        // But where does 0xfffdfb* map ?
+        /*
         create_ram(ht, "drivers",       0xfffdfb000000, 0x40000);
         create_ram(ht, "secured-os",    0xfffdfb040000, 0x40000);
         create_ram(ht, "nvram",         0xfffdfb7b0000, 0x20000);
         create_ram(ht, "trustlets",     0xfffdfb7d0000, 0x20000);
         create_ram(ht, "smu-fw-bis",    0xfffdfb800000, 0x40000);
         create_ram(ht, "smu-fw2-bis",   0xfffdfb840000, 0x40000);
+        */
+        break;
+    case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
+        create_ram(ht, "bios",          0x000009d80000, 0x280000);
+        create_ram(ht, "bios-dir",      0x00000a000000, 0x400);
 
+        create_ram(ht, "apob",          0x00000a200000, 0x20000);
+        break;
+    case CODENAME_CEZANNE:
+        create_ram(ht, "apob",          0x00000a200000, 0x20000);
         break;
     default:
         break;
