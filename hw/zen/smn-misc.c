@@ -137,11 +137,13 @@ static void create_dxio_matisse(SmnMiscState *s)
         int num = regions[i].num_entries;
 
         for(int j = 0; j < num; j++) {
+            // "Phy" region
             // firmware: 0x1000->0x3000
             // registers: 0x04008, 0x0401c, 0x04030, 0x04038, 0x04044, 0x04048, 0x04058, 0x0405c, 0x10000, 0x10004, 0x10030
             add_region_printf(s, "misc_a%d_b%d", base + j * 0x20000, 0x20000, i, j);
         }
         for(int j = 0; j < num; j++) {
+            // Offset 0x800 is the "pnp" region
             // registers: 0x4fc, 0x838, 0x860, 0x864
             add_region_printf(s, "misc_a%d_c%d", base + 0xe0000 + j * 0x1000, 0x1000, i, j);
         }
