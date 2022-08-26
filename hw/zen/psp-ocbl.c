@@ -8,6 +8,8 @@
 #include "sysemu/block-backend.h"
 
 /*
+MCM structure at offset 0x50:
+
 typedef struct {
     uint8_t PhysDieId;
     uint8_t SocketId;
@@ -21,11 +23,17 @@ typedef struct {
 static void create_config(AddressSpace *as, uint32_t addr)
 {
     // PackageType
-    address_space_stb(as, addr + 2, 2, MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stb(as, addr + 0x52, 2, MEMTXATTRS_UNSPECIFIED, NULL);
     // SystemSocketCount
-    address_space_stb(as, addr + 3, 1, MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stb(as, addr + 0x53, 1, MEMTXATTRS_UNSPECIFIED, NULL);
     // DiesPerSocket
-    address_space_stb(as, addr + 5, 1, MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stb(as, addr + 0x55, 1, MEMTXATTRS_UNSPECIFIED, NULL);
+
+    // Cores per CCX
+    address_space_stb(as, addr + 0x1e, 4, MEMTXATTRS_UNSPECIFIED, NULL);
+    // Num CCX
+    address_space_stb(as, addr + 0x1f, 2, MEMTXATTRS_UNSPECIFIED, NULL);
+
 }
 
 static void create_config_lucienne_renoir(AddressSpace *as, uint32_t addr)
@@ -35,9 +43,9 @@ static void create_config_lucienne_renoir(AddressSpace *as, uint32_t addr)
     // 0x4fd5f:1 -> socket Count
 
     // SocketId
-    address_space_stb(as, addr + 0xd, 0, MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stb(as, addr + 0x5d, 0, MEMTXATTRS_UNSPECIFIED, NULL);
     // SocketCount
-    address_space_stb(as, addr + 0xf, 1, MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stb(as, addr + 0x5f, 1, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static void create_config_cezanne(AddressSpace *as, uint32_t addr)
@@ -47,9 +55,9 @@ static void create_config_cezanne(AddressSpace *as, uint32_t addr)
     // 0x4fd5b:1 -> socket Count
 
     // SocketId
-    address_space_stb(as, addr + 0x9, 0, MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stb(as, addr + 0x59, 0, MEMTXATTRS_UNSPECIFIED, NULL);
     // SocketCount
-    address_space_stb(as, addr + 0xb, 1, MEMTXATTRS_UNSPECIFIED, NULL);
+    address_space_stb(as, addr + 0x5b, 1, MEMTXATTRS_UNSPECIFIED, NULL);
 }
 
 static uint32_t get_psp_dir_addr(zen_codename codename)
@@ -80,18 +88,18 @@ static void psp_create_config(AddressSpace *as, zen_codename codename)
     case CODENAME_PINNACLE_RIDGE:
     case CODENAME_RAVEN_RIDGE:
     case CODENAME_PICASSO:
-        create_config(as, psp_dir_addr + 0xa50);
+        create_config(as, psp_dir_addr + 0xa00);
         break;
     case CODENAME_MATISSE:
     case CODENAME_VERMEER:
-        create_config(as, psp_dir_addr + 0xd50);
+        create_config(as, psp_dir_addr + 0xd00);
         break;
     case CODENAME_LUCIENNE:
     case CODENAME_RENOIR:
-        create_config_lucienne_renoir(as, psp_dir_addr + 0xd50);
+        create_config_lucienne_renoir(as, psp_dir_addr + 0xd00);
         break;
     case CODENAME_CEZANNE:
-        create_config_cezanne(as, psp_dir_addr + 0xd50);
+        create_config_cezanne(as, psp_dir_addr + 0xd00);
         break;
     default:
         g_assert_not_reached();

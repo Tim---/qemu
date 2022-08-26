@@ -35,6 +35,13 @@ static uint64_t smn_misc_read(void *opaque, hwaddr offset, unsigned size)
         return 0x100;
     case 0x5a86c:
         return zen_get_cpuid(s->codename);
+    case 0x5a870:
+        /*
+        summit-ridge/raven-ridge:
+            bitmap of enabled cores
+            bit ccx*4 + core
+        */
+        return 1;
     case 0x5a08c:
         /*
         matisse (and later ?) expect it to have the number of "dimms" (?)
