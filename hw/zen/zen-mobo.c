@@ -25,6 +25,7 @@
 #include "hw/zen/df.h"
 #include "hw/zen/psp-fuses.h"
 #include "hw/zen/psp-dirty.h"
+#include "hw/zen/dxio.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -371,6 +372,17 @@ static void create_fuses(ZenMoboState *s)
     psp_dirty_fuses(s->codename, dev);
 }
 
+static void create_dxio(ZenMoboState *s)
+{
+    if(s->codename != CODENAME_SUMMIT_RIDGE)
+        return;
+
+    DeviceState *dev = qdev_new(TYPE_DXIO);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0x12000000, false);
+    zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 1, 0x11a00000, false);
+}
+
 DeviceState *zen_mobo_create(zen_codename codename, BlockBackend *blk)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
@@ -405,6 +417,7 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     create_umc(s);
     create_df(s);
     create_fuses(s);
+    create_dxio(s);
 }
 
 static Property zen_mobo_props[] = {
