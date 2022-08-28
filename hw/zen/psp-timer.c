@@ -27,7 +27,7 @@ struct PspTimerState {
     uint32_t ctrl0;
     uint32_t ctrl1;
     uint32_t ctrl2;
-    uint32_t ctrl3;
+    uint32_t int_enable;
     uint32_t interval;
 
     int64_t start_time;
@@ -43,21 +43,32 @@ struct PspTimerState {
  * 
  *   (assume VALUE is in nanoseconds ?)
  * 
- * - interval mode (not implemented)
+ * - interval mode
  *   set CTRL2 = 0
- *   set CTRL3 = 1
+ *   set INT_ENABLE = 1
  *   set INTERVAL = value * 100000
  *   set CTRL1 = 0x100
  *   set CTRL0 = 0x10101
  *   wait for interrupts
  * 
  *   (INTERVAL is set to 2e9, which is huge !)
+ * 
+ * - interval mode 2 !
+ *   set INT_ENABLE = 0
+ *   set CTRL0 = 0x10000
+ *   set INTERVAL = value * 25
+ *   set CTRL1 = 0x100
+ *   set CTRL0 = 0x10100
+ *   set CTRL0 = 0x10001
+ *   set INT_ENABLE = 1
+ *  - disable interval mode 2:
+ *   set INT_ENABLE = 0
  */
 
 REG32(CTRL0,        0x00)
 REG32(CTRL1,        0x04)
 REG32(CTRL2,        0x08)
-REG32(CTRL3,        0x0C) /* Int enable ? */
+REG32(INT_ENABLE,   0x0C)
 REG32(INTERVAL,     0x10)
 REG32(VALUE,        0x20)
 
@@ -70,27 +81,26 @@ static void psp_timer_hit(void *opaque)
 
 static void psp_timer_execute(PspTimerState *s)
 {
+    ptimer_transaction_begin(s->ptimer);
+
     switch(s->ctrl0) {
     case 0:
         s->state = STATE_STOPPED;
-        ptimer_transaction_begin(s->ptimer);
         ptimer_stop(s->ptimer);
-        ptimer_transaction_commit(s->ptimer);
         break;
     case 0x101:
         s->state = STATE_COUNT;
         s->start_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-        ptimer_transaction_begin(s->ptimer);
         ptimer_stop(s->ptimer);
-        ptimer_transaction_commit(s->ptimer);
         break;
+    case 0x10001:
     case 0x10101:
         s->state = STATE_INTERVAL;
-        ptimer_transaction_begin(s->ptimer);
         ptimer_run(s->ptimer, 0);
-        ptimer_transaction_commit(s->ptimer);
         break;
     }
+
+    ptimer_transaction_commit(s->ptimer);
 }
 
 static uint64_t psp_timer_read(void *opaque, hwaddr offset, unsigned size)
@@ -115,7 +125,6 @@ static void psp_timer_write(void *opaque, hwaddr offset,
 
     switch (offset) {
     case A_CTRL0:
-        assert(data == 0 || data == 0x101 || data == 0x10101);
         s->ctrl0 = data;
         psp_timer_execute(s);
         return;
@@ -127,9 +136,9 @@ static void psp_timer_write(void *opaque, hwaddr offset,
         assert(data == 0);
         s->ctrl2 = data;
         return;
-    case A_CTRL3:
+    case A_INT_ENABLE:
         assert(data == 0 || data == 1);
-        s->ctrl3 = data;
+        s->int_enable = data;
         return;
     case A_INTERVAL:
         s->interval = data;
