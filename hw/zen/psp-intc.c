@@ -20,6 +20,8 @@ struct PspIntcState {
     MemoryRegion regs_private;
     uint32_t enabled[PSP_INTC_ARRAY_SIZE];
     uint32_t active[PSP_INTC_ARRAY_SIZE];
+    uint32_t a[PSP_INTC_ARRAY_SIZE];
+    uint32_t b[PSP_INTC_ARRAY_SIZE];
     uint32_t current_int;
     qemu_irq irq;
 };
@@ -28,6 +30,18 @@ REG32(INT_ENABLE0,      0x00)
 REG32(INT_ENABLE1,      0x04)
 REG32(INT_ENABLE2,      0x08)
 REG32(INT_ENABLE3,      0x0c)
+
+/* Unknown */
+REG32(INT_A0,           0x10)
+REG32(INT_A1,           0x14)
+REG32(INT_A2,           0x18)
+REG32(INT_A3,           0x1c)
+
+/* Unknown */
+REG32(INT_B0,           0x20)
+REG32(INT_B1,           0x24)
+REG32(INT_B2,           0x28)
+REG32(INT_B3,           0x2c)
 
 REG32(INT_ACK0,         0xb0)
 REG32(INT_ACK1,         0xb4)
@@ -117,6 +131,12 @@ static void psp_intc_public_write(void *opaque, hwaddr offset,
     case R_INT_ENABLE0 ... R_INT_ENABLE3:
         set_int_enable(pis, index - R_INT_ENABLE0, data);
         return;
+    case R_INT_A0 ... R_INT_A3:
+        pis->a[index - R_INT_A0] = data;
+        return;
+    case R_INT_B0 ... R_INT_B3:
+        pis->b[index - R_INT_B0] = data;
+        return;
     case R_INT_ACK0 ... R_INT_ACK3:
         set_int_ack(pis, index - R_INT_ACK0, data);
         return;
@@ -136,6 +156,16 @@ const MemoryRegionOps psp_intc_public_ops = {
 
 static uint64_t psp_intc_private_read(void *opaque, hwaddr offset, unsigned size)
 {
+    PspIntcState *pis = PSP_INTC(opaque);
+    size_t index = offset / 4;
+
+    switch (index) {
+    case R_INT_A0 ... R_INT_A3:
+        return pis->a[index - R_INT_A0];
+    case R_INT_B0 ... R_INT_B3:
+        return pis->b[index - R_INT_B0];
+    }
+
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                 "(offset 0x%lx)\n", __func__, offset);
     return 0;
@@ -144,6 +174,18 @@ static uint64_t psp_intc_private_read(void *opaque, hwaddr offset, unsigned size
 static void psp_intc_private_write(void *opaque, hwaddr offset,
                             uint64_t data, unsigned size)
 {
+    PspIntcState *pis = PSP_INTC(opaque);
+    size_t index = offset / 4;
+
+    switch (index) {
+    case R_INT_A0 ... R_INT_A3:
+        pis->a[index - R_INT_A0] = data;
+        return;
+    case R_INT_B0 ... R_INT_B3:
+        pis->b[index - R_INT_B0] = data;
+        return;
+    }
+
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
                 "(offset 0x%lx, value 0x%lx)\n", __func__, offset, data);
 }
