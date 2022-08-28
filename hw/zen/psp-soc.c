@@ -9,6 +9,7 @@
 #include "hw/zen/psp-ht-bridge.h"
 #include "hw/zen/psp-timer.h"
 #include "hw/zen/psp-dirty.h"
+#include "hw/zen/psp-intc.h"
 #include "hw/zen/ccp.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(PspSocState, PSP_SOC)
@@ -99,6 +100,14 @@ static void create_ccp(PspSocState *s, zen_codename codename)
     psp_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x03000000);
 }
 
+static void create_intc(PspSocState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_PSP_INTC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    psp_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x03010200);
+    psp_mmio_map(s, SYS_BUS_DEVICE(dev), 1, 0x03200200);
+}
+
 static void psp_soc_init(Object *obj)
 {
 }
@@ -112,6 +121,7 @@ static void psp_soc_realize(DeviceState *dev, Error **errp)
     create_smn(s);
     create_ht(s);
     create_ccp(s, s->codename);
+    create_intc(s);
 
     for(int i = 0; i < 2; i++) {
         create_timer(s, i);
