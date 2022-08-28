@@ -78,15 +78,18 @@ void psp_dirty_create_pc_ram(MemoryRegion *ht, MemoryRegion *smn, zen_codename c
     create_ram(ht, "test-ram",      0xfffdf7000000, 0x10000);
     /* used for SMU, Tee, nvram... */
     create_ram(ht, "ram2",          0xfffdfb000000, 0x1000000);
+    create_ram(ht, "bios",          0x000009d80000, 0x280000);
+    create_ram(ht, "bios-dir",      0x00000a000000, 0x400);
 
     switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+        create_ram(ht, "apob",          0x000004000000, 0x10000);
+        break;
     case CODENAME_RAVEN_RIDGE:
     case CODENAME_PICASSO:
         create_ram(smn, "apob2",        0x03f40000, 0x10000);
-
         create_ram(ht, "apob",          0x000004000000, 0x10000);
-        create_ram(ht, "bios",          0x000009d80000, 0x280000);
-        create_ram(ht, "bios-dir",      0x00000a000000, 0x400);
 
         /*
         create_ram(ht, "drivers",       0xfffdfb000000, 0x40000);
@@ -99,9 +102,6 @@ void psp_dirty_create_pc_ram(MemoryRegion *ht, MemoryRegion *smn, zen_codename c
         break;
     case CODENAME_MATISSE:
     case CODENAME_VERMEER:
-        create_ram(ht, "bios",          0x000009d80000, 0x280000);
-        create_ram(ht, "bios-dir",      0x00000a000000, 0x400);
-
         create_ram(ht, "apob",          0x00000a200000, 0x20000);
         break;
     case CODENAME_CEZANNE:
