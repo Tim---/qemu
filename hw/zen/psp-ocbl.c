@@ -27,20 +27,65 @@ typedef struct __attribute__((__packed__))
     uint8_t EnabledCoreCountOnDie;
     uint8_t _pad2[0x1];
     uint8_t LogicalCoresPerPhysicalComplex[2];
+
+    /*
+    Indexed by logical core (< EnabledCoreCountOnDie).
+    Unused entries are (0xff, 0xff).
+    */
     struct {
         uint8_t CoreComplex;
         uint8_t Core;
-    } Mapping[8];
-    uint8_t padding[0x1c];
+    } LogicalToPhysical[8];
+
+    /*
+    Indexed by (PhysComplex, PhysCore).
+    Unused entries are (0xff, 0xff).
+    */
+    struct {
+        uint8_t LogicalComplex;
+        uint8_t LogicalCore;
+    } PhysicalToLogical[2][4];
+
+    uint8_t padding[0xc];
     mcm_info_t McmInfos;
 } early_config_t;
 
 static void create_config(AddressSpace *as, uint32_t addr)
 {
     early_config_t conf = {
+        .SecurityState = 0, // TODO
         .PhysicalCoreCount = 4,
         .PhysicalCoreComplexCount = 2,
+        .EnabledCoreCountOnDie = 1,
+        .LogicalCoresPerPhysicalComplex = {
+            4, 4,
+        },
+        .LogicalToPhysical = {
+            {.CoreComplex = 0x00, .Core = 0x00},
+            {.CoreComplex = 0xff, .Core = 0xff},
+            {.CoreComplex = 0xff, .Core = 0xff},
+            {.CoreComplex = 0xff, .Core = 0xff},
+            {.CoreComplex = 0xff, .Core = 0xff},
+            {.CoreComplex = 0xff, .Core = 0xff},
+            {.CoreComplex = 0xff, .Core = 0xff},
+            {.CoreComplex = 0xff, .Core = 0xff},
+        },
+        .PhysicalToLogical = {
+            {
+                {.LogicalComplex = 0x00, .LogicalCore = 0x00},
+                {.LogicalComplex = 0xff, .LogicalCore = 0xff},
+                {.LogicalComplex = 0xff, .LogicalCore = 0xff},
+                {.LogicalComplex = 0xff, .LogicalCore = 0xff},
+            }, {
+                {.LogicalComplex = 0xff, .LogicalCore = 0xff},
+                {.LogicalComplex = 0xff, .LogicalCore = 0xff},
+                {.LogicalComplex = 0xff, .LogicalCore = 0xff},
+                {.LogicalComplex = 0xff, .LogicalCore = 0xff},
+            },
+        },
         .McmInfos = {
+            .PhysDieId = 0,
+            .SocketId = 0,
             .PackageType = 2,
             .SystemSocketCount = 1,
             .DiesPerSocket = 1,
