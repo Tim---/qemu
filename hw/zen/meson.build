@@ -8,7 +8,7 @@ specific_ss.add(when: 'CONFIG_ZEN', if_true: files(
 ))
 specific_ss.add(when: 'CONFIG_PSP', if_true: files(
     'psp-regs.c', 'psp-ocbl.c', 'psp-smn-bridge.c', 'psp-timer.c',
-    'psp-ht-bridge.c', 'psp-soc.c',
+    'psp-ht-bridge.c', 'psp-soc.c', 'psp-intc.c'
 ))
 
 specific_ss.add(when: 'CONFIG_CCP', if_true: files('ccp.c', 'ccp-ops.c'))
