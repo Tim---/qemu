@@ -85,11 +85,14 @@ static void create_ht(PspSocState *s)
     psp_mmio_map(s, SYS_BUS_DEVICE(dev), 1, 0x04000000);
 }
 
-static void create_timer(PspSocState *s, int i)
+static void create_timer(PspSocState *s, int i, DeviceState *intc)
 {
     DeviceState *dev = qdev_new(TYPE_PSP_TIMER);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     psp_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x03010400 + i * 0x24);
+
+    if(i == 0)
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(intc, 0x60));
 }
 
 static void create_ccp(PspSocState *s, zen_codename codename, DeviceState *intc)
@@ -130,7 +133,7 @@ static void psp_soc_realize(DeviceState *dev, Error **errp)
     create_ccp(s, s->codename, intc);
 
     for(int i = 0; i < 2; i++) {
-        create_timer(s, i);
+        create_timer(s, i, intc);
     }
 
     psp_dirty_create_pc_ram(s->ht_region, s->smn_region, s->codename);
