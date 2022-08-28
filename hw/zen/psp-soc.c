@@ -11,6 +11,7 @@
 #include "hw/zen/psp-dirty.h"
 #include "hw/zen/psp-intc.h"
 #include "hw/zen/ccp.h"
+#include "cpu.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(PspSocState, PSP_SOC)
 
@@ -37,7 +38,7 @@ static void create_memory(PspSocState *s)
     memory_region_add_subregion(&s->container, 0, &s->ram);
 }
 
-static void create_cpu(PspSocState *s, const char *cpu_type)
+static DeviceState *create_cpu(PspSocState *s, const char *cpu_type)
 {
     /* Create CPU */
     Object *cpuobj;
@@ -45,6 +46,7 @@ static void create_cpu(PspSocState *s, const char *cpu_type)
     object_property_set_link(cpuobj, "memory", OBJECT(&s->container),
                              &error_abort);
     qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+    return DEVICE(cpuobj);
 }
 
 static void psp_mmio_map(PspSocState *s, SysBusDevice *sbd, int n, hwaddr addr)
@@ -90,7 +92,7 @@ static void create_timer(PspSocState *s, int i)
     psp_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x03010400 + i * 0x24);
 }
 
-static void create_ccp(PspSocState *s, zen_codename codename)
+static void create_ccp(PspSocState *s, zen_codename codename, DeviceState *intc)
 {
     DeviceState *dev = qdev_new(TYPE_CCP);
     object_property_set_link(OBJECT(dev), "system-memory",
@@ -98,14 +100,18 @@ static void create_ccp(PspSocState *s, zen_codename codename)
     qdev_prop_set_uint32(dev, "num-queues", zen_get_num_ccp_queues(codename));
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     psp_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x03000000);
+
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(intc, 0x15));
 }
 
-static void create_intc(PspSocState *s)
+static DeviceState *create_intc(PspSocState *s, DeviceState *cpu)
 {
     DeviceState *dev = qdev_new(TYPE_PSP_INTC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     psp_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x03010200);
     psp_mmio_map(s, SYS_BUS_DEVICE(dev), 1, 0x03200200);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(cpu, ARM_CPU_FIQ));
+    return dev;
 }
 
 static void psp_soc_init(Object *obj)
@@ -116,12 +122,12 @@ static void psp_soc_realize(DeviceState *dev, Error **errp)
 {
     PspSocState *s = PSP_SOC(dev);
     create_memory(s);
-    create_cpu(s, s->cpu_type);
+    DeviceState *cpu = create_cpu(s, s->cpu_type);
     create_psp_regs(s, s->codename);
     create_smn(s);
     create_ht(s);
-    create_ccp(s, s->codename);
-    create_intc(s);
+    DeviceState *intc = create_intc(s, cpu);
+    create_ccp(s, s->codename, intc);
 
     for(int i = 0; i < 2; i++) {
         create_timer(s, i);
