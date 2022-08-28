@@ -4,6 +4,7 @@
 #include "hw/registerfields.h"
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
+#include "hw/irq.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(PspTimerState, PSP_TIMER)
 
@@ -30,6 +31,7 @@ struct PspTimerState {
     uint32_t interval;
 
     int64_t start_time;
+    qemu_irq irq;
 };
 
 /**
@@ -61,6 +63,9 @@ REG32(VALUE,        0x20)
 
 static void psp_timer_hit(void *opaque)
 {
+    PspTimerState *s = PSP_TIMER(opaque);
+
+    qemu_irq_raise(s->irq);
 }
 
 static void psp_timer_execute(PspTimerState *s)
@@ -150,6 +155,8 @@ static void psp_timer_init(Object *obj)
     memory_region_init_io(&pts->regs_region, OBJECT(pts), &psp_timer_ops, pts,
                           "psp-timer", 0x24);
     sysbus_init_mmio(sbd, &pts->regs_region);
+
+    sysbus_init_irq(sbd, &pts->irq);
 }
 
 static void psp_timer_realize(DeviceState *dev, Error **errp)
