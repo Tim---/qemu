@@ -76,7 +76,8 @@ static void psp_timer_hit(void *opaque)
 {
     PspTimerState *s = PSP_TIMER(opaque);
 
-    qemu_irq_raise(s->irq);
+    if(s->int_enable)
+        qemu_irq_raise(s->irq);
 }
 
 static void psp_timer_execute(PspTimerState *s)
