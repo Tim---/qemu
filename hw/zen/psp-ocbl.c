@@ -7,33 +7,46 @@
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
 
-/*
-MCM structure at offset 0x50:
 
-typedef struct {
+typedef struct __attribute__((__packed__)) {
     uint8_t PhysDieId;
     uint8_t SocketId;
     uint8_t PackageType;
     uint8_t SystemSocketCount;
     uint8_t unknown0;
     uint8_t DiesPerSocket;
-} PspBootRomServices_t;
-*/
+} mcm_info_t;
+
+typedef struct __attribute__((__packed__))
+{
+    uint8_t _pad0[0x14];
+    uint32_t SecurityState;
+    uint8_t _pad1[0x6];
+    uint8_t PhysicalCoreCount;
+    uint8_t PhysicalCoreComplexCount;
+    uint8_t EnabledCoreCountOnDie;
+    uint8_t _pad2[0x1];
+    uint8_t LogicalCoresPerPhysicalComplex[2];
+    struct {
+        uint8_t CoreComplex;
+        uint8_t Core;
+    } Mapping[8];
+    uint8_t padding[0x1c];
+    mcm_info_t McmInfos;
+} early_config_t;
 
 static void create_config(AddressSpace *as, uint32_t addr)
 {
-    // PackageType
-    address_space_stb(as, addr + 0x52, 2, MEMTXATTRS_UNSPECIFIED, NULL);
-    // SystemSocketCount
-    address_space_stb(as, addr + 0x53, 1, MEMTXATTRS_UNSPECIFIED, NULL);
-    // DiesPerSocket
-    address_space_stb(as, addr + 0x55, 1, MEMTXATTRS_UNSPECIFIED, NULL);
-
-    // Cores per CCX
-    address_space_stb(as, addr + 0x1e, 4, MEMTXATTRS_UNSPECIFIED, NULL);
-    // Num CCX
-    address_space_stb(as, addr + 0x1f, 2, MEMTXATTRS_UNSPECIFIED, NULL);
-
+    early_config_t conf = {
+        .PhysicalCoreCount = 4,
+        .PhysicalCoreComplexCount = 2,
+        .McmInfos = {
+            .PackageType = 2,
+            .SystemSocketCount = 1,
+            .DiesPerSocket = 1,
+        }
+    };
+    address_space_write(as, addr, MEMTXATTRS_UNSPECIFIED, &conf, sizeof(conf));
 }
 
 static void create_config_lucienne_renoir(AddressSpace *as, uint32_t addr)
