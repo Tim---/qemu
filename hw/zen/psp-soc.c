@@ -109,10 +109,27 @@ static void create_ccp(PspSocState *s, zen_codename codename, DeviceState *intc)
 
 static DeviceState *create_intc(PspSocState *s, DeviceState *cpu)
 {
+    hwaddr offset = 0;
+
+    /* Is there 2 interrupt controllers ? it's not clear */
+
+    switch(s->codename) {
+    case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
+        offset = 0x300;
+        break;
+    case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
+        offset = 0x200;
+        break;
+    default:
+        return NULL;
+    }
+
     DeviceState *dev = qdev_new(TYPE_PSP_INTC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    psp_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x03010200);
-    psp_mmio_map(s, SYS_BUS_DEVICE(dev), 1, 0x03200200);
+    psp_mmio_map(s, SYS_BUS_DEVICE(dev), 0, 0x03010000 + offset);
+    psp_mmio_map(s, SYS_BUS_DEVICE(dev), 1, 0x03200000 + offset);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(cpu, ARM_CPU_FIQ));
     return dev;
 }
