@@ -123,7 +123,8 @@ static DeviceState *create_intc(PspSocState *s, DeviceState *cpu)
         offset = 0x200;
         break;
     default:
-        return NULL;
+        offset = 0x200; /* guess ! */
+        break;
     }
 
     DeviceState *dev = qdev_new(TYPE_PSP_INTC);
