@@ -41,6 +41,13 @@ void psp_dirty_fuses(zen_codename codename, DeviceState *dev)
         /* Needed unless the UMC is marked as emulation/simulation */
         psp_fuses_write32(dev, 0xcc, 0x20);
         break;
+    case CODENAME_MATISSE:
+        /*
+        Some kind of socket or die bitmap ?
+        Bits 22-29 are used.
+        */
+        psp_fuses_write32(dev, 0x218, 0x00400000);
+        break;
     default:
         break;
     }
