@@ -86,7 +86,7 @@ static void create_config(AddressSpace *as, uint32_t addr)
         .McmInfos = {
             .PhysDieId = 0,
             .SocketId = 0,
-            .PackageType = 2,
+            .PackageType = 0,
             .SystemSocketCount = 1,
             .DiesPerSocket = 1,
         }
