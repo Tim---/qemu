@@ -81,7 +81,8 @@ static void ddr4_spd_data_realize(DeviceState *dev, Error **errp)
     assert(s->bank != NULL);
 
     memset(s->data, 0, 512);
-    s->data[2] = 0x0c; /* DDR4 */
+    s->data[0x02] = 0x0c; /* type: DDR4 */
+    s->data[0x12] = 0x07; /* t_CKAVG_min */
 }
 
 static int ddr4_spd_data_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
