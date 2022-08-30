@@ -32,6 +32,20 @@ typedef struct {
     } complexes[2];
 } raven_ridge_topology_t;
 
+typedef struct {
+    uint64_t Base;
+    uint64_t Size;
+    uint32_t Type;
+    uint32_t _padding;
+} raven_ridge_hole_t;
+
+typedef struct {
+    uint64_t addr_or_size; // Top of memory ?
+    uint32_t NumOfHoles;
+    uint32_t _padding;
+    raven_ridge_hole_t HoleMap[];
+} raven_ridge_mem_info_t;
+
 static void apob_create_header(hwaddr apob_addr)
 {
     apob_header_t header = {
@@ -50,15 +64,15 @@ static void apob_add_entry(hwaddr apob_addr, uint32_t group, uint32_t type, uint
     address_space_read(&address_space_memory, apob_addr, MEMTXATTRS_UNSPECIFIED, &apob_header, sizeof(apob_header));
 
     apob_item_header_t item_header = {
-        .group = 3,
-        .type = 1,
-        .instance = 0,
-        .size = 0x30 + size,
+        .group = group,
+        .type = type,
+        .instance = instance,
+        .size = sizeof(item_header) + size,
     };
     address_space_write(&address_space_memory, apob_addr + apob_header.size, MEMTXATTRS_UNSPECIFIED, &item_header, sizeof(item_header));
-    address_space_write(&address_space_memory, apob_addr + apob_header.size + 0x30, MEMTXATTRS_UNSPECIFIED, &item_header, sizeof(item_header));
+    address_space_write(&address_space_memory, apob_addr + apob_header.size + sizeof(item_header), MEMTXATTRS_UNSPECIFIED, buf, size);
 
-    apob_header.size += 0x30 + size;
+    apob_header.size += sizeof(item_header) + size;
     address_space_write(&address_space_memory, apob_addr, MEMTXATTRS_UNSPECIFIED, &apob_header, sizeof(apob_header));
 }
 
@@ -76,6 +90,19 @@ static void create_apob_raven_ridge(hwaddr apob_addr)
         }
     }
     apob_add_entry(apob_addr, 3, 1, 0, &topology, sizeof(topology));
+
+    uint8_t apob_1_f[0x28] = {0};
+    apob_add_entry(apob_addr, 1, 0xf, 0, apob_1_f, sizeof(apob_1_f));
+
+    size_t mem_info_size = sizeof(raven_ridge_mem_info_t) + 1 * sizeof(raven_ridge_hole_t);
+    raven_ridge_mem_info_t *mem_info = g_malloc0(mem_info_size);
+    mem_info->addr_or_size = 0x0000000010000000;
+    mem_info->NumOfHoles = 1;
+    mem_info->HoleMap[0].Base = 0x000000000F380000;
+    mem_info->HoleMap[0].Size = 0x0000000000C80000;
+    mem_info->HoleMap[0].Type = 2; /* PRIVILEGED_DRAM */
+    apob_add_entry(apob_addr, 9, 9, 0, mem_info, mem_info_size);
+    g_free(mem_info);
 }
 
 void create_apob(hwaddr apob_addr, zen_codename codename)
