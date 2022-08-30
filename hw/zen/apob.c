@@ -110,6 +110,7 @@ void create_apob(hwaddr apob_addr, zen_codename codename)
     apob_create_header(apob_addr);
 
     switch(codename) {
+    case CODENAME_SUMMIT_RIDGE:
     case CODENAME_RAVEN_RIDGE:
         create_apob_raven_ridge(apob_addr);
         break;
