@@ -184,7 +184,9 @@ SmuConfig smu_configs[] = {
 
 static void smu_mb1_execute(SmuState *s)
 {
-    qemu_log_mask(LOG_UNIMP, "%s: execute\n", __func__);
+    qemu_log_mask(LOG_UNIMP, "%s: execute (cmd=0x%x)\n", __func__, s->mb1_cmd);
+    for(int i = 0; i < 6; i++)
+        s->mb1_data[i] = 0;
     s->mb1_status = 1;
 }
 
@@ -218,6 +220,8 @@ static uint64_t smu_read(void *opaque, hwaddr addr, unsigned size)
         return 1;
     } else if(addr == s->config->mb1_status_offset) {
         return s->mb1_status;
+    } else if(addr >= s->config->mb1_data_offset && addr < s->config->mb1_data_offset + 6 * 4) {
+        return s->mb1_data[(addr - s->config->mb1_data_offset) / 4];
     } else if(addr == s->config->mb2_status_offset) {
         return s->mb2_status;
     } else if(addr == s->config->mb2_data_offset) {
@@ -238,8 +242,13 @@ static void smu_write(void *opaque, hwaddr addr,
     if(addr == s->config->mb1_cmd_offset) {
         s->mb1_cmd = value;
         smu_mb1_execute(s);
+        return;
+    } else if(addr == s->config->mb1_status_offset) {
+        s->mb1_status = value;
+        return;
     } else if(addr >= s->config->mb1_data_offset && addr < s->config->mb1_data_offset + 6 * 4) {
         s->mb1_data[(addr - s->config->mb1_data_offset) / 4] = value;
+        return;
     } else if(addr == s->config->mb2_cmd_offset) {
         s->mb2_cmd = value;
         smu_mb2_execute(s);
