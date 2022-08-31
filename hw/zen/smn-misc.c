@@ -239,6 +239,35 @@ static void create_dxio(SmnMiscState *s)
     }
 }
 
+static void create_pcie_misc(SmnMiscState *s)
+{
+    if(s->codename != CODENAME_SUMMIT_RIDGE)
+        return;
+    
+    /* Secondary PCI buses behing GPP bridges */
+    for(int i = 0; i < 3; i++) {
+        hwaddr base = 0x10100000 + i * 0x100000;
+        add_region_printf(s, "misc_gpp%d", base, 0x100000, i);
+
+        for(int j = 0; j < 8; j++) {
+            add_region_printf(s, "misc_gpp%d_%d", base + 0x40000 + j * 0x1000, 0x1000, i, j);
+        }
+    }
+
+    for(int wrapper = 0; wrapper < 2; wrapper++) {
+        hwaddr base = 0x11100000 + wrapper * 0x100000;
+
+        add_region_printf(s, "misc_wrapper%d", base, 0x100000, wrapper);
+        for(int port = 0; port < 8; port++) {
+            add_region_printf(s, "misc_wrapper%d_a_port%x", base + port * 0x1000, 0x1000, wrapper, port);
+            add_region_printf(s, "misc_wrapper%d_b_port%x", base + 0x40000 + port * 0x1000, 0x1000, wrapper, port);
+        }
+    }
+
+    add_region_printf(s, "misc_indirect%d", 0x4a348, 0x8, 0);
+    add_region_printf(s, "misc_indirect%d", 0x4a3c8, 0x8, 1);
+}
+
 static void create_unknown_blocks(SmnMiscState *s)
 {
     switch(s->codename) {
@@ -279,6 +308,7 @@ static void smn_misc_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->region);
 
     create_dxio(s);
+    create_pcie_misc(s);
     create_unknown_blocks(s);
 }
 
