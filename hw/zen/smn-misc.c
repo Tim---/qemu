@@ -250,8 +250,13 @@ static void create_pcie_misc(SmnMiscState *s)
         add_region_printf(s, "misc_gpp%d", base, 0x100000, i);
 
         for(int j = 0; j < 8; j++) {
-            add_region_printf(s, "misc_gpp%d_%d", base + 0x40000 + j * 0x1000, 0x1000, i, j);
+            add_region_printf(s, "misc_gpp%d_a%d", base + 0x40000 + j * 0x1000, 0x1000, i, j); /* PCIe conf */
+            add_region_printf(s, "misc_gpp%d_b%d", base + 0x34000 + j * 0x200, 0x200, i, j);
         }
+        add_region_printf(s, "misc_gpp%d_c", base + 0x23000, 0x1000, i);
+        add_region_printf(s, "misc_gpp%d_d", base + 0x3a000, 0x2000, i);
+        add_region_printf(s, "misc_gpp%d_e", base + 0x30000, 0x1000, i);
+        add_region_printf(s, "misc_gpp%d_f", base + 0x00000, 0x1000, i); /* PCIe conf */
     }
 
     for(int wrapper = 0; wrapper < 2; wrapper++) {
@@ -266,6 +271,45 @@ static void create_pcie_misc(SmnMiscState *s)
 
     add_region_printf(s, "misc_indirect%d", 0x4a348, 0x8, 0);
     add_region_printf(s, "misc_indirect%d", 0x4a3c8, 0x8, 1);
+
+    /* PCIe config alias for 00:00.0 */
+    add_region_printf(s, "misc_rb", 0x13b00000, 0x1000);
+    for(int i = 0; i < 16; i++) {
+        add_region_printf(s, "misc_rb_a%d", 0x13b31000 + i * 0x400, 0x400, i);
+    }
+
+    for(int i = 0; i < 7; i++)
+        add_region_printf(s, "misc_bits_a%d", 0x13b14400 + i * 0x400, 0x400, i);
+    for(int i = 0; i < 4; i++)
+        add_region_printf(s, "misc_bits_b%d", 0x15b00400 + i * 0x400, 0x400, i);
+    for(int i = 0; i < 5; i++)
+        add_region_printf(s, "misc_bits_c%d", 0x04400400 + i * 0x400, 0x400, i);
+
+    
+    /* Some device. Taishan-specific ? */
+    add_region_printf(s, "misc_x", 0x03100000, 0x10000);
+    for(int i = 0; i < 8; i++)
+        add_region_printf(s, "misc_x_a%d", 0x03101100 + i * 0x80, 0x80, i);
+
+    /* Some device. Taishan-specific ? */
+    add_region_printf(s, "misc_y_a", 0x16d80000, 0x1000);
+    add_region_printf(s, "misc_y_b", 0x16c0c000, 0x1000);
+    for(int i = 0; i < 4; i++) {
+        add_region_printf(s, "misc_y_c%d", 0x16d04000 + i * 0x400, 0x400, i);
+        add_region_printf(s, "misc_y_d%d", 0x16d08000 + i * 0x400, 0x400, i);
+        add_region_printf(s, "misc_y_e%d", 0x16d0c000 + i * 0x400, 0x400, i);
+    }
+
+    /* IOMMU */
+    add_region_printf(s, "iommu_cfg",  0x13f00000, 0x1000); /* PCI */
+    add_region_printf(s, "iommu_mmio", 0x02400000, 0x10000);
+    add_region_printf(s, "iommu_l2a",  0x15700000, 0x1000);
+    add_region_printf(s, "iommu_l2b",  0x13f01000, 0x1000);
+    for(int i = 0; i < 4; i++) {
+        add_region_printf(s, "iommu_l1int%d", 0x14700000 + i * 0x100000, 0x100000, i);
+    }
+
+
 }
 
 static void create_unknown_blocks(SmnMiscState *s)
