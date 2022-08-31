@@ -93,10 +93,29 @@ static uint64_t df_read(DfState *s, int fun, hwaddr offset, unsigned size)
     uint64_t res = 0;
 
     switch(FUN_REG(fun, offset)) {
+    case FUN_REG(0, 0xa0):
+        /*
+        bits:
+        24-31 is the "upper bound" (PCI bus ?)
+        16-23 is the "lower bound" (PCI bus ?)
+         4-11 is some value (Socket/RootBridge address ?)
+         0- 1   must be 3
+
+        */
+        res = 0xff000043;
+        break;
     case A_D18F1x200:
+        /*
+        not sure:
+        bit 27: 0=single socket, 1=dual sockets
+        */
         res = 0x00010001;
         break;
     case A_D18F1x204:
+        /*
+        not sure:
+        bits 16-31: total number of root bridges
+        */
         res = 0x00010001;
         break;
     case A_FICA_DATA0:
