@@ -296,9 +296,6 @@ static void create_misc_bits(SmnMiscState *s, int index, hwaddr base, int num_re
 
 static void create_pcie_misc_summit(SmnMiscState *s)
 {
-    if(s->codename != CODENAME_SUMMIT_RIDGE)
-        return;
-    
     create_wrappers(s, 2);
 
     create_gpp(s, 3);
@@ -347,9 +344,11 @@ static void create_pcie_misc(SmnMiscState *s)
 {
     switch(s->codename) {
     case CODENAME_SUMMIT_RIDGE:
+    case CODENAME_PINNACLE_RIDGE:
         create_pcie_misc_summit(s);
         break;
     case CODENAME_RAVEN_RIDGE:
+    case CODENAME_PICASSO:
         create_pcie_misc_raven(s);
         break;
     default:
