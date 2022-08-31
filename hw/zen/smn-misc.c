@@ -270,22 +270,19 @@ static void create_wrappers(SmnMiscState *s, int num_wrappers)
     }
 }
 
-static void create_gpp(SmnMiscState *s, int num_gpp)
+static void create_gpp(SmnMiscState *s, int index, hwaddr base)
 {
     /* Secondary PCI buses behing GPP bridges */
-    for(int i = 0; i < num_gpp; i++) {
-        hwaddr base = 0x10100000 + i * 0x100000;
-        add_region_printf(s, "misc_gpp%d", base, 0x100000, i);
+    add_region_printf(s, "misc_gpp%d", base, 0x100000, index);
 
-        for(int j = 0; j < 8; j++) {
-            add_region_printf(s, "misc_gpp%d_a%d", base + 0x40000 + j * 0x1000, 0x1000, i, j); /* PCIe conf */
-            add_region_printf(s, "misc_gpp%d_b%d", base + 0x34000 + j * 0x200, 0x200, i, j);
-        }
-        add_region_printf(s, "misc_gpp%d_c", base + 0x23000, 0x1000, i);
-        add_region_printf(s, "misc_gpp%d_d", base + 0x3a000, 0x2000, i);
-        add_region_printf(s, "misc_gpp%d_e", base + 0x30000, 0x1000, i);
-        add_region_printf(s, "misc_gpp%d_f", base + 0x00000, 0x1000, i); /* PCIe conf */
+    for(int j = 0; j < 8; j++) {
+        add_region_printf(s, "misc_gpp%d_a%d", base + 0x40000 + j * 0x1000, 0x1000, index, j); /* PCIe conf */
+        add_region_printf(s, "misc_gpp%d_b%d", base + 0x34000 + j * 0x200, 0x200, index, j);
     }
+    add_region_printf(s, "misc_gpp%d_c", base + 0x23000, 0x1000, index);
+    add_region_printf(s, "misc_gpp%d_d", base + 0x3a000, 0x2000, index);
+    add_region_printf(s, "misc_gpp%d_e", base + 0x30000, 0x1000, index);
+    add_region_printf(s, "misc_gpp%d_f", base + 0x00000, 0x1000, index); /* PCIe conf */
 }
 
 static void create_misc_bits(SmnMiscState *s, int index, hwaddr base, int num_regions)
@@ -298,7 +295,9 @@ static void create_pcie_misc_summit(SmnMiscState *s)
 {
     create_wrappers(s, 2);
 
-    create_gpp(s, 3);
+    create_gpp(s, 0, 0x10100000);
+    create_gpp(s, 1, 0x10200000);
+    create_gpp(s, 2, 0x10300000);
 
     create_pcie_straps(s, 0, 0x4a348);
     create_pcie_straps(s, 0, 0x4a3c8);
@@ -333,11 +332,21 @@ static void create_pcie_misc_summit(SmnMiscState *s)
 static void create_pcie_misc_raven(SmnMiscState *s)
 {
     create_wrappers(s, 1);
-    create_gpp(s, 1);
+    create_gpp(s, 0, 0x10100000);
     create_pcie_straps(s, 0, 0x4a34c);
     create_misc_bits(s, 0, 0x13b14400, 5);
     create_misc_bits(s, 1, 0x15b00400, 4);
     create_iommu(s, 2);
+}
+
+static void create_pcie_misc_matisse(SmnMiscState *s)
+{
+    create_gpp(s, 0, 0x10400000);
+    create_gpp(s, 1, 0x10800000);
+    create_gpp(s, 2, 0x10c00000);
+    create_misc_bits(s, 0, 0x13e14400, 7);
+    create_misc_bits(s, 1, 0x15e00400, 4);
+    create_misc_bits(s, 2, 0x05000400, 5);
 }
 
 static void create_pcie_misc(SmnMiscState *s)
@@ -350,6 +359,9 @@ static void create_pcie_misc(SmnMiscState *s)
     case CODENAME_RAVEN_RIDGE:
     case CODENAME_PICASSO:
         create_pcie_misc_raven(s);
+        break;
+    case CODENAME_MATISSE:
+        create_pcie_misc_matisse(s);
         break;
     default:
         break;
