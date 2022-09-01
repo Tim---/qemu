@@ -187,6 +187,12 @@ static void smu_mb1_execute(SmuState *s)
     qemu_log_mask(LOG_UNIMP, "%s: execute (cmd=0x%x)\n", __func__, s->mb1_cmd);
     for(int i = 0; i < 6; i++)
         s->mb1_data[i] = 0;
+    
+    switch(s->mb1_cmd) {
+    case 8:
+        s->mb1_data[0] = 3; /* DXIO_MBOX_RETVAL_OK */
+        break;
+    }
     s->mb1_status = 1;
 }
 
