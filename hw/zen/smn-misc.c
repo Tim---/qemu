@@ -261,18 +261,14 @@ static void create_iommu(SmnMiscState *s, int l1int_num)
     }
 }
 
-static void create_wrappers(SmnMiscState *s, int num_wrappers)
+static void create_wrapper(SmnMiscState *s, int index, hwaddr base)
 {
-    for(int wrapper = 0; wrapper < num_wrappers; wrapper++) {
-        hwaddr base = 0x11100000 + wrapper * 0x100000;
-
-        add_region_printf(s, "misc_wrapper%d", base, 0x100000, wrapper);
-        for(int port = 0; port < 8; port++) {
-            add_region_printf(s, "misc_wrapper%d_a_port%x", base + port * 0x1000, 0x1000, wrapper, port);
-            add_region_printf(s, "misc_wrapper%d_b_port%x", base + 0x40000 + port * 0x1000, 0x1000, wrapper, port);
-        }
-        add_region_printf(s, "misc_wrapper%d_c", base + 0x80000, 0x1000, wrapper);
+    add_region_printf(s, "misc_wrapper%d", base, 0x100000, index);
+    for(int port = 0; port < 8; port++) {
+        add_region_printf(s, "misc_wrapper%d_a_port%x", base + port * 0x1000, 0x1000, index, port);
+        add_region_printf(s, "misc_wrapper%d_b_port%x", base + 0x40000 + port * 0x1000, 0x1000, index, port);
     }
+    add_region_printf(s, "misc_wrapper%d_c", base + 0x80000, 0x1000, index);
 }
 
 static void create_gpp(SmnMiscState *s, int index, hwaddr base)
@@ -280,14 +276,23 @@ static void create_gpp(SmnMiscState *s, int index, hwaddr base)
     /* Secondary PCI buses behing GPP bridges */
     add_region_printf(s, "misc_gpp%d", base, 0x100000, index);
 
-    for(int j = 0; j < 8; j++) {
-        add_region_printf(s, "misc_gpp%d_a%d", base + 0x40000 + j * 0x1000, 0x1000, index, j); /* PCIe conf */
-        add_region_printf(s, "misc_gpp%d_b%d", base + 0x34000 + j * 0x200, 0x200, index, j);
+    add_region_printf(s, "misc_gpp%d_a", base + 0x00000, 0x1000, index); /* PCIe conf */
+
+    add_region_printf(s, "misc_gpp%d_b", base + 0x23000, 0x1000, index);
+
+    add_region_printf(s, "misc_gpp%d_c", base + 0x30000, 0x1000, index);
+
+    add_region_printf(s, "misc_gpp%d_d", base + 0x31000, 0x1000, index);
+
+    for(int j = 0; j < 32; j++) {
+        add_region_printf(s, "misc_gpp%d_e%d", base + 0x34000 + j * 0x200, 0x200, index, j);
     }
-    add_region_printf(s, "misc_gpp%d_c", base + 0x23000, 0x1000, index);
-    add_region_printf(s, "misc_gpp%d_d", base + 0x3a000, 0x2000, index);
-    add_region_printf(s, "misc_gpp%d_e", base + 0x30000, 0x1000, index);
-    add_region_printf(s, "misc_gpp%d_f", base + 0x00000, 0x1000, index); /* PCIe conf */
+
+    add_region_printf(s, "misc_gpp%d_f", base + 0x3a000, 0x2000, index);
+
+    for(int j = 0; j < 8; j++) {
+        add_region_printf(s, "misc_gpp%d_g%d", base + 0x40000 + j * 0x1000, 0x1000, index, j); /* PCIe conf */
+    }
 }
 
 static void create_misc_bits(SmnMiscState *s, int index, hwaddr base, int num_regions)
@@ -296,22 +301,47 @@ static void create_misc_bits(SmnMiscState *s, int index, hwaddr base, int num_re
         add_region_printf(s, "misc_bits_%d_%d", base + i * 0x400, 0x400, index, i);
 }
 
+static void create_misc_rb(SmnMiscState *s, int index, hwaddr base)
+{
+    /* PCIe config alias for 00:00.0 */
+    add_region_printf(s, "misc_rb", base, 0x100000);
+
+    add_region_printf(s, "misc_rb_a", base, 0x10000);
+
+    add_region_printf(s, "misc_rb_b", base + 0x10000, 0x10000);
+
+    add_region_printf(s, "misc_rb_c", base + 0x20000, 0x10000);
+
+    for(int i = 0; i < 64; i++) {
+        add_region_printf(s, "misc_rb_d%d", base + 0x31000 + i * 0x400, 0x400, i);
+    }
+}
+
+static void create_misc_a(SmnMiscState *s, int index, hwaddr base)
+{
+    add_region_printf(s, "misc_a%d", base, 0x100000, index);
+}
+
+static void create_misc_d(SmnMiscState *s, int index, hwaddr base)
+{
+    add_region_printf(s, "misc_d%d", base, 0x100000, index);
+}
+
+static void create_misc_e(SmnMiscState *s, int index, hwaddr base)
+{
+    add_region_printf(s, "misc_e%d", base, 0x100000, index);
+}
+
 static void create_pcie_misc_summit(SmnMiscState *s)
 {
-    create_wrappers(s, 2);
+    create_misc_rb(s, 0, 0x13b00000);
+
+    create_wrapper(s, 0, 0x11100000);
+    create_wrapper(s, 1, 0x11200000);
 
     create_gpp(s, 0, 0x10100000);
     create_gpp(s, 1, 0x10200000);
     create_gpp(s, 2, 0x10300000);
-
-    create_pcie_straps(s, 0, 0x4a348);
-    create_pcie_straps(s, 0, 0x4a3c8);
-
-    /* PCIe config alias for 00:00.0 */
-    add_region_printf(s, "misc_rb", 0x13b00000, 0x1000);
-    for(int i = 0; i < 16; i++) {
-        add_region_printf(s, "misc_rb_a%d", 0x13b31000 + i * 0x400, 0x400, i);
-    }
 
     create_misc_bits(s, 0, 0x13b14400, 7);
     create_misc_bits(s, 1, 0x15b00400, 4);
@@ -332,26 +362,64 @@ static void create_pcie_misc_summit(SmnMiscState *s)
     }
 
     create_iommu(s, 4);
+
+    create_pcie_straps(s, 0, 0x4a348);
+    create_pcie_straps(s, 0, 0x4a3c8);
+
+    create_misc_a(s, 0, 0x17400000);
+    create_misc_a(s, 1, 0x17500000);
+
+    create_misc_d(s, 0, 0x14300000);
+
+    create_misc_e(s, 0, 0x01400000);
+    create_misc_e(s, 1, 0x01500000);
 }
 
 static void create_pcie_misc_raven(SmnMiscState *s)
 {
-    create_wrappers(s, 1);
+    create_misc_rb(s, 0, 0x13b00000);
+
+    create_wrapper(s, 0, 0x11100000);
+
     create_gpp(s, 0, 0x10100000);
+
     create_pcie_straps(s, 0, 0x4a34c);
+
     create_misc_bits(s, 0, 0x13b14400, 5);
     create_misc_bits(s, 1, 0x15b00400, 4);
+
     create_iommu(s, 2);
+
+    create_misc_a(s, 0, 0x17400000);
+    create_misc_a(s, 1, 0x17500000);
+    create_misc_d(s, 0, 0x14300000);
 }
 
 static void create_pcie_misc_matisse(SmnMiscState *s)
 {
+    create_misc_rb(s, 0, 0x13e00000);
+
     create_gpp(s, 0, 0x10400000);
     create_gpp(s, 1, 0x10800000);
     create_gpp(s, 2, 0x10c00000);
+
     create_misc_bits(s, 0, 0x13e14400, 7);
     create_misc_bits(s, 1, 0x15e00400, 4);
     create_misc_bits(s, 2, 0x05000400, 5);
+
+    create_misc_a(s, 0, 0x17400000);
+    create_misc_a(s, 1, 0x17800000);
+
+    create_misc_d(s, 0, 0x14600000);
+
+    create_misc_e(s, 0, 0x01700000);
+    create_misc_e(s, 1, 0x01b00000);
+
+    add_region_printf(s, "misc_b%d", 0x11400000, 0x100000, 0);
+    add_region_printf(s, "misc_b%d", 0x11800000, 0x100000, 1);
+
+    add_region_printf(s, "misc_c%d", 0x03100000, 0x100000, 0);
+    add_region_printf(s, "misc_c%d", 0x03200000, 0x100000, 1);
 }
 
 static void create_pcie_misc(SmnMiscState *s)
