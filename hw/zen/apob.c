@@ -46,6 +46,24 @@ typedef struct {
     raven_ridge_hole_t HoleMap[];
 } raven_ridge_mem_info_t;
 
+/* matisse specific */
+
+typedef struct {
+    struct {
+        uint8_t num;
+        struct {
+            uint8_t num;
+            struct {
+                uint8_t num;
+                struct {
+                    uint8_t enabled;
+                } thread[2];
+            } core[8];
+        } ccx[2];
+    } ccd[8];
+} matisse_topology_t;
+
+
 static void apob_create_header(hwaddr apob_addr)
 {
     apob_header_t header = {
@@ -83,7 +101,7 @@ static void create_apob_raven_ridge(hwaddr apob_addr)
     for(int complex = 0; complex < 2; complex++) {
         topology.complexes[complex].num = complex;
         for(int core = 0; core < 4; core++) {
-            topology.complexes[complex].cores[core].num = complex;
+            topology.complexes[complex].cores[core].num = core;
             for(int thread = 0; thread < 2; thread++) {
                 topology.complexes[complex].cores[core].threads[thread].enabled = 1;
             }
@@ -105,6 +123,26 @@ static void create_apob_raven_ridge(hwaddr apob_addr)
     g_free(mem_info);
 }
 
+static void create_apob_matisse(hwaddr apob_addr)
+{
+    matisse_topology_t topo = {};
+
+    for(int ccd = 0; ccd < 8; ccd++) {
+        topo.ccd[ccd].num = ccd;
+        for(int ccx = 0; ccx < 2; ccx++) {
+            topo.ccd[ccd].ccx[ccx].num = ccx;
+            for(int core = 0; core < 4; core++) {
+                topo.ccd[ccd].ccx[ccx].core[core].num = core;
+                for(int thread = 0; thread < 2; thread++) {
+                    topo.ccd[ccd].ccx[ccx].core[core].thread[thread].enabled = 1;
+                }
+            }
+        }
+    }
+
+    apob_add_entry(apob_addr, 3, 3, 0, &topo, sizeof(topo));
+}
+
 void create_apob(hwaddr apob_addr, zen_codename codename)
 {
     apob_create_header(apob_addr);
@@ -116,6 +154,8 @@ void create_apob(hwaddr apob_addr, zen_codename codename)
     case CODENAME_PICASSO:
         create_apob_raven_ridge(apob_addr);
         break;
+    case CODENAME_MATISSE:
+        create_apob_matisse(apob_addr);
     default:
         break;
     }
