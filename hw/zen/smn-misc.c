@@ -59,6 +59,11 @@ static uint64_t smn_misc_read(void *opaque, hwaddr offset, unsigned size)
         This is needed for the raven-ridge PSP bootloader.
         */
         return 1;
+    case 0x30081a38:
+        /*
+        Matisse: similar to CoreDisByFuse for Summit/Raven
+        */
+        return 0xfe;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(offset 0x%lx)\n",
