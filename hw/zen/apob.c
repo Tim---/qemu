@@ -169,6 +169,7 @@ void create_apob(hwaddr apob_addr, zen_codename codename)
         create_apob_raven_ridge(apob_addr);
         break;
     case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
         create_apob_matisse(apob_addr);
     default:
         break;
