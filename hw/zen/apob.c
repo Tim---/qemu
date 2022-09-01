@@ -141,6 +141,20 @@ static void create_apob_matisse(hwaddr apob_addr)
     }
 
     apob_add_entry(apob_addr, 3, 3, 0, &topo, sizeof(topo));
+
+    /* The size is not really clear... */
+    uint8_t apob_1_f[0x108] = {0};
+    apob_add_entry(apob_addr, 1, 0xf, 0, apob_1_f, sizeof(apob_1_f));
+
+    size_t mem_info_size = sizeof(raven_ridge_mem_info_t) + 1 * sizeof(raven_ridge_hole_t);
+    raven_ridge_mem_info_t *mem_info = g_malloc0(mem_info_size);
+    mem_info->addr_or_size = 0x0000000010000000;
+    mem_info->NumOfHoles = 1;
+    mem_info->HoleMap[0].Base = 0x000000000F380000;
+    mem_info->HoleMap[0].Size = 0x0000000000C80000;
+    mem_info->HoleMap[0].Type = 2; /* PRIVILEGED_DRAM */
+    apob_add_entry(apob_addr, 9, 9, 0, mem_info, mem_info_size);
+    g_free(mem_info);
 }
 
 void create_apob(hwaddr apob_addr, zen_codename codename)
