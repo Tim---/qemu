@@ -64,6 +64,11 @@ static uint64_t smn_misc_read(void *opaque, hwaddr offset, unsigned size)
         Matisse: similar to CoreDisByFuse for Summit/Raven
         */
         return 0xfe;
+    case 0x30081d98:
+        /*
+        Vermeer: similar to CoreDisByFuse for Summit/Raven
+        */
+        return 0xfe;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(offset 0x%lx)\n",
@@ -434,6 +439,7 @@ static void create_pcie_misc(SmnMiscState *s)
         create_pcie_misc_raven(s);
         break;
     case CODENAME_MATISSE:
+    case CODENAME_VERMEER:
         create_pcie_misc_matisse(s);
         break;
     default:
