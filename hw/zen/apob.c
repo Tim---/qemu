@@ -128,13 +128,13 @@ static void create_apob_matisse(hwaddr apob_addr)
     matisse_topology_t topo = {};
 
     for(int ccd = 0; ccd < 8; ccd++) {
-        topo.ccd[ccd].num = ccd;
+        topo.ccd[ccd].num = (ccd == 0 ? ccd : 0xff);
         for(int ccx = 0; ccx < 2; ccx++) {
-            topo.ccd[ccd].ccx[ccx].num = ccx;
+            topo.ccd[ccd].ccx[ccx].num = (ccx == 0 ? ccx : 0xff);
             for(int core = 0; core < 4; core++) {
-                topo.ccd[ccd].ccx[ccx].core[core].num = core;
+                topo.ccd[ccd].ccx[ccx].core[core].num = (core == 0 ? core : 0xff);
                 for(int thread = 0; thread < 2; thread++) {
-                    topo.ccd[ccd].ccx[ccx].core[core].thread[thread].enabled = 1;
+                    topo.ccd[ccd].ccx[ccx].core[core].thread[thread].enabled = (thread == 0 ? 1 : 0);
                 }
             }
         }

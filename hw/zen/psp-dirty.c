@@ -12,12 +12,12 @@
 static void psp_dirty_core_dis_by_fuse(zen_codename codename, DeviceState *dev)
 {
     /*
-    CoreDisByFuse register
-    Guesses:
-        bits 0-7: bitmap of disabled cores
-        bit 8: enable hyperthreading
-    
-    We only enable the first core
+    CoreDisByFuse register for summit-ridge/raven-ridge:
+        Guesses:
+            bits 0-7: bitmap of disabled cores
+            bit 8: enable hyperthreading
+        
+        We only enable the first core
     */
     switch(codename) {
     case CODENAME_SUMMIT_RIDGE:
@@ -27,6 +27,18 @@ static void psp_dirty_core_dis_by_fuse(zen_codename codename, DeviceState *dev)
     case CODENAME_RAVEN_RIDGE:
     case CODENAME_PICASSO:
         psp_fuses_write32(dev, 0x254, 0x000000fe);
+        break;
+    case CODENAME_MATISSE: ;
+        /*
+        22-29: CCD present (bitmap)
+        30-37: CCD down (bitmap mask)
+        */
+        uint64_t value = 0;
+        value |= 0xffULL << 22;
+        value |= 0xfeULL << 30;
+
+        psp_fuses_write32(dev, 0x218, value & 0xffffffff);
+        psp_fuses_write32(dev, 0x21c, value >> 32);
         break;
     default:
         break;
