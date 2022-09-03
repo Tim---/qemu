@@ -313,7 +313,7 @@ static void create_misc_rb(SmnMiscState *s, int index, hwaddr base)
 
     add_region_printf(s, "misc_rb_a", base, 0x10000);
 
-    add_region_printf(s, "misc_rb_b", base + 0x10000, 0x10000);
+    add_region_printf(s, "misc_rb_b", base + 0x10000, 0x10000); /* 0x2e8-0x2ec is a BAR */
 
     add_region_printf(s, "misc_rb_c", base + 0x20000, 0x10000);
 
@@ -329,6 +329,7 @@ static void create_misc_a(SmnMiscState *s, int index, hwaddr base)
 
 static void create_misc_d(SmnMiscState *s, int index, hwaddr base)
 {
+    /* registers 0x40 -> 0x88 are similar. "unset" mask is 0x001F0037 */
     add_region_printf(s, "misc_d%d", base, 0x100000, index);
 }
 
@@ -343,6 +344,10 @@ static void create_pcie_misc_summit(SmnMiscState *s)
 
     create_wrapper(s, 0, 0x11100000);
     create_wrapper(s, 1, 0x11200000);
+
+    /* One for each wrapper */
+    create_pcie_straps(s, 0, 0x4a348);
+    create_pcie_straps(s, 1, 0x4a3c8);
 
     create_gpp(s, 0, 0x10100000);
     create_gpp(s, 1, 0x10200000);
@@ -367,9 +372,6 @@ static void create_pcie_misc_summit(SmnMiscState *s)
     }
 
     create_iommu(s, 4);
-
-    create_pcie_straps(s, 0, 0x4a348);
-    create_pcie_straps(s, 0, 0x4a3c8);
 
     create_misc_a(s, 0, 0x17400000);
     create_misc_a(s, 1, 0x17500000);
@@ -425,6 +427,20 @@ static void create_pcie_misc_matisse(SmnMiscState *s)
 
     add_region_printf(s, "misc_c%d", 0x03100000, 0x100000, 0);
     add_region_printf(s, "misc_c%d", 0x03200000, 0x100000, 1);
+
+    /* For each CCD ? */
+    for(int ccd = 0; ccd < 8; ccd++) {
+        add_region_printf(s, "misc_ccd%d", 0x30000000 + ccd * 0x2000000, 0x2000000, ccd);
+    }
+    for(int ccd = 0; ccd < 8; ccd++) {
+        add_region_printf(s, "misc_f%d", 0x0c000000 + ccd * 0x100000, 0x100000, ccd);
+    }
+    for(int ccd = 0; ccd < 4; ccd++) {
+        add_region_printf(s, "misc_g%d", 0x13600000 + ccd * 0x100000, 0x100000, ccd);
+    }
+    for(int ccd = 4; ccd < 8; ccd++) {
+        add_region_printf(s, "misc_g%d", 0x17c00000 + (ccd-4) * 0x100000, 0x100000, ccd);
+    }
 }
 
 static void create_pcie_misc(SmnMiscState *s)

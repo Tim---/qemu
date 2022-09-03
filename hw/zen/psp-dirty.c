@@ -56,7 +56,7 @@ void psp_dirty_fuses(zen_codename codename, DeviceState *dev)
     case CODENAME_MATISSE:
     case CODENAME_VERMEER:
         /*
-        Some kind of socket or die bitmap ?
+        A bitmap of CCD present ?
         Bits 22-29 are used.
         */
         psp_fuses_write32(dev, 0x218, 0x00400000);
