@@ -233,7 +233,7 @@ static const FlashPartInfo known_devices[] = {
     { INFO("mx25l1606e",  0xc22015,      0,  64 << 10,  32, ER_4K) },
     { INFO("mx25l3205d",  0xc22016,      0,  64 << 10,  64, 0) },
     { INFO("mx25l6405d",  0xc22017,      0,  64 << 10, 128, 0) },
-    { INFO("mx25l12805d", 0xc22018,      0,  64 << 10, 256, 0) },
+    { INFO("mx25l12805d", 0xc22018,      0,  64 << 10, 256, ER_4K) },
     { INFO("mx25l12855e", 0xc22618,      0,  64 << 10, 256, 0) },
     { INFO6("mx25l25635e", 0xc22019,     0xc22019,  64 << 10, 512,
             ER_4K | ER_32K), .sfdp_read = m25p80_sfdp_mx25l25635e },
