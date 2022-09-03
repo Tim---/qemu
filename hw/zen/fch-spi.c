@@ -9,6 +9,16 @@
 #include "hw/irq.h"
 #include "hw/zen/fch-spi.h"
 
+//#define DEBUG_FCH_SPI
+
+#ifdef DEBUG_FCH_SPI
+#define DPRINTF(fmt, ...) \
+    do { qemu_log_mask(LOG_UNIMP, "%s: " fmt, __func__, ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...) \
+    do { } while (0)
+#endif
+
 #define REGS_SIZE 0x20000
 
 OBJECT_DECLARE_SIMPLE_TYPE(FchSpiState, FCH_SPI)
@@ -212,8 +222,7 @@ static uint64_t fch_spi_io_read(void *opaque, hwaddr addr, unsigned size)
 {
     FchSpiState *s = FCH_SPI(opaque);
 
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx, size 0x%x)\n", __func__, addr, size);
+    DPRINTF("unimplemented device read  (offset 0x%lx, size 0x%x)\n", addr, size);
 
     if(range_covers_byte(addr, size, A_SPI_CNTRL1)) {
         fch_spi_fifo_read(s);
@@ -227,8 +236,7 @@ static void fch_spi_io_write(void *opaque, hwaddr addr,
 {
     FchSpiState *s = FCH_SPI(opaque);
 
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
-                "(offset 0x%lx, size 0x%x, value 0x%lx)\n", __func__, addr, size, value);
+    DPRINTF("unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", addr, size, value);
 
     stn_le_p(s->storage + addr, size, value);
 
