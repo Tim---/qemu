@@ -26,6 +26,7 @@
 #include "hw/zen/psp-fuses.h"
 #include "hw/zen/psp-dirty.h"
 #include "hw/zen/dxio.h"
+#include "hw/timer/hpet.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(ZenMoboState, ZEN_MOBO)
 
@@ -383,6 +384,13 @@ static void create_dxio(ZenMoboState *s)
     zen_mobo_smn_map(DEVICE(s), SYS_BUS_DEVICE(dev), 1, 0x11a00000, false);
 }
 
+static void create_hpet(ZenMoboState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_HPET);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_ht_map(DEVICE(s), SYS_BUS_DEVICE(dev), 0, 0xfed00000, false);
+}
+
 DeviceState *zen_mobo_create(zen_codename codename, BlockBackend *blk)
 {
     DeviceState *dev = qdev_new(TYPE_ZEN_MOBO);
@@ -418,6 +426,7 @@ static void zen_mobo_realize(DeviceState *dev, Error **errp)
     create_df(s);
     create_fuses(s);
     create_dxio(s);
+    create_hpet(s);
 }
 
 static Property zen_mobo_props[] = {
