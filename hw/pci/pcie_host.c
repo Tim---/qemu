@@ -45,7 +45,8 @@ static void pcie_mmcfg_data_write(void *opaque, hwaddr mmcfg_addr,
     if (!pci_dev) {
         uint8_t devfn = PCIE_MMCFG_DEVFN(mmcfg_addr);
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
-                    "(D%xF%xx%lx, size 0x%x, value 0x%lx)\n", __func__,
+                    "(B%02lxD%02xF%01xx%03lx, size 0x%x, value 0x%lx)\n", __func__,
+                    PCIE_MMCFG_BUS(mmcfg_addr),
                     PCI_SLOT(devfn), PCI_FUNC(devfn),
                     PCIE_MMCFG_CONFOFFSET(mmcfg_addr), len, val);
         return;
@@ -68,7 +69,8 @@ static uint64_t pcie_mmcfg_data_read(void *opaque,
     if (!pci_dev) {
         uint8_t devfn = PCIE_MMCFG_DEVFN(mmcfg_addr);
         qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                    "(D%xF%xx%lx, size 0x%x)\n", __func__,
+                    "(B%02lxD%02xF%01xx%03lx, size 0x%x)\n", __func__,
+                    PCIE_MMCFG_BUS(mmcfg_addr),
                     PCI_SLOT(devfn), PCI_FUNC(devfn),
                     PCIE_MMCFG_CONFOFFSET(mmcfg_addr), len);
         return ~0x0;
