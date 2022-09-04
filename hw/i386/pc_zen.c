@@ -13,6 +13,7 @@
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/qdev-properties.h"
 #include "hw/zen/apob.h"
+#include "hw/timer/hpet.h"
 
 struct PcZenMachineClass {
     X86MachineClass parent;
@@ -111,6 +112,13 @@ static void create_delay_port(PcZenMachineState *s)
     }
 }
 
+static void create_hpet(PcZenMachineState *s)
+{
+    DeviceState *dev = qdev_new(TYPE_HPET);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    zen_mobo_ht_map(s->mobo, SYS_BUS_DEVICE(dev), 0, 0xfed00000, false);
+}
+
 static void map_ht_to_cpu(MachineState *machine)
 {
     PcZenMachineState *mms = PC_ZEN_MACHINE(machine);
@@ -141,6 +149,8 @@ static void pc_zen_machine_state_init(MachineState *machine)
     create_zen_rtc(mms);
 
     create_delay_port(mms);
+
+    create_hpet(mms);
 }
 
 static void pc_zen_machine_initfn(Object *obj)
