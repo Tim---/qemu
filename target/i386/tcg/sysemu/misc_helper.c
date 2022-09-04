@@ -467,7 +467,7 @@ void helper_rdmsr(CPUX86State *env)
     case MSR_IA32_BNDCFGS:
         val = env->msr_bndcfgs;
         break;
-     case MSR_IA32_UCODE_REV:
+    case MSR_IA32_UCODE_REV:
         val = x86_cpu->ucode_rev;
         break;
     case MSR_CORE_THREAD_COUNT: {
@@ -488,6 +488,25 @@ void helper_rdmsr(CPUX86State *env)
 
         break;
     }
+    case 0xc0010064:
+        /*
+        AMD P-state 0
+        PstateEn = 1
+        CpuFid = 0x10
+        CpuDfsId = 0x08
+        */
+        val = 0x8000000000000810ULL;
+        break;
+    case 0xc0010065:
+    case 0xc0010066:
+    case 0xc0010067:
+    case 0xc0010068:
+    case 0xc0010069:
+    case 0xc001006a:
+    case 0xc001006b:
+        /* AMD Other P-states */
+        val = 0;
+        break;
     default:
         if ((uint32_t)env->regs[R_ECX] >= MSR_MC0_CTL
             && (uint32_t)env->regs[R_ECX] < MSR_MC0_CTL +
