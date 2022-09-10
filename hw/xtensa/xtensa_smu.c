@@ -60,7 +60,7 @@ static void xtensa_smu_machine_init(MachineClass *mc)
     mc->desc = "smu machine (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_smu_init;
     mc->max_cpus = 1;
-    mc->default_cpu_type = XTENSA_CPU_TYPE_NAME("de233_fpu");
+    mc->default_cpu_type = XTENSA_CPU_TYPE_NAME("smu");
 }
 
 DEFINE_MACHINE("smu", xtensa_smu_machine_init)
