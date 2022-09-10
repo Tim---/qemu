@@ -91,7 +91,7 @@
 #define XCHAL_HAVE_PSO_FULL_RETENTION	0	/* all regs preserved on PSO */
 #define XCHAL_HAVE_THREADPTR		1	/* THREADPTR register */
 #define XCHAL_HAVE_BOOLEANS		1	/* boolean registers */
-#define XCHAL_HAVE_CP			1	/* CPENABLE reg (coprocessor) */
+#define XCHAL_HAVE_CP			0	/* CPENABLE reg (coprocessor) */
 #define XCHAL_CP_MAXCFG			8	/* max allowed cp id plus one */
 #define XCHAL_HAVE_MAC16		1	/* MAC16 package */
 #define XCHAL_HAVE_LX			1	/* LX core */
