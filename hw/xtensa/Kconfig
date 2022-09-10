@@ -23,3 +23,5 @@ config XTENSA_XTFPGA
 config XTENSA_SMU
     bool
     select UNIMP
+    select ZEN
+    select PSP_DEVS

@@ -9,6 +9,8 @@
 #include "xtensa_sim.h"
 #include "exec/address-spaces.h"
 #include "hw/misc/unimp.h"
+#include "hw/zen/psp-smn-bridge.h"
+#include "hw/zen/zen-utils.h"
 
 #define FW_ADDR 0x00000000
 #define FW_SIZE 0x40000
@@ -20,6 +22,19 @@ static void smu_reset(void *opaque)
 
     cpu_reset(CPU(cpu));
     env->pc = FW_ADDR + 0x100;
+}
+
+static void create_smn(void)
+{
+    MemoryRegion *smn_region = g_malloc0(sizeof(*smn_region));
+    create_region_with_unimpl(smn_region, NULL, "smn", 0x1000000000UL);
+
+    DeviceState *dev = qdev_new(TYPE_SMN_BRIDGE);
+    object_property_set_link(OBJECT(dev), "source-memory",
+                             OBJECT(smn_region), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    memory_region_add_subregion(get_system_memory(), 0x03220000, sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
+    memory_region_add_subregion(get_system_memory(), 0x01000000, sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1));
 }
 
 static XtensaCPU *smu_common_init(MachineState *machine)
@@ -48,7 +63,8 @@ static XtensaCPU *smu_common_init(MachineState *machine)
 
     create_unimplemented_device("pub-regs",  0x03010000, 0x00010000);
     create_unimplemented_device("priv-regs", 0x03200000, 0x00010000);
-    create_unimplemented_device("smn-regs",  0x03220000, 0x00010000);
+    
+    create_smn();
 
     return cpu;
 }

@@ -716,3 +716,4 @@ config ARMSSE
 config PSP
     bool
     select ZEN
+    select PSP_DEVS
