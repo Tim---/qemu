@@ -203,10 +203,12 @@ static xtensa_state_internal states[] = {
   { "FPreserved20a", 20, 0 },
   { "FPreserved5", 5, 0 },
   { "FPreserved7", 7, 0 },
-  { "EXPSTATE", 32, XTENSA_STATE_IS_EXPORTED }
+  { "EXPSTATE", 32, XTENSA_STATE_IS_EXPORTED },
+  { "LITBADDR", 20, 0 },
+  { "LITBEN", 1, 0 }
 };
 
-#define NUM_STATES 92
+#define NUM_STATES 94
 
 enum xtensa_state_id {
   STATE_LCOUNT,
@@ -300,7 +302,9 @@ enum xtensa_state_id {
   STATE_FPreserved20a,
   STATE_FPreserved5,
   STATE_FPreserved7,
-  STATE_EXPSTATE
+  STATE_EXPSTATE,
+  STATE_LITBADDR,
+  STATE_LITBEN
 };
 
 
@@ -8630,6 +8634,33 @@ static xtensa_arg_internal Iclass_MKSADJ_D_stateArgs[] = {
   { { STATE_CPENABLE }, 'i' }
 };
 
+static xtensa_arg_internal Iclass_xt_iclass_rsr_litbase_args[] = {
+  { { OPERAND_art }, 'o' }
+};
+
+static xtensa_arg_internal Iclass_xt_iclass_rsr_litbase_stateArgs[] = {
+  { { STATE_LITBADDR }, 'i' },
+  { { STATE_LITBEN }, 'i' }
+};
+
+static xtensa_arg_internal Iclass_xt_iclass_wsr_litbase_args[] = {
+  { { OPERAND_art }, 'i' }
+};
+
+static xtensa_arg_internal Iclass_xt_iclass_wsr_litbase_stateArgs[] = {
+  { { STATE_LITBADDR }, 'o' },
+  { { STATE_LITBEN }, 'o' }
+};
+
+static xtensa_arg_internal Iclass_xt_iclass_xsr_litbase_args[] = {
+  { { OPERAND_art }, 'm' }
+};
+
+static xtensa_arg_internal Iclass_xt_iclass_xsr_litbase_stateArgs[] = {
+  { { STATE_LITBADDR }, 'm' },
+  { { STATE_LITBEN }, 'm' }
+};
+
 static xtensa_iclass_internal iclasses[] = {
   { 0, 0 /* xt_iclass_excw */,
     0, 0, 0, 0 },
@@ -9518,7 +9549,13 @@ static xtensa_iclass_internal iclasses[] = {
   { 2, Iclass_MKSADJ_S_args,
     2, Iclass_MKSADJ_S_stateArgs, 0, 0 },
   { 2, Iclass_MKSADJ_D_args,
-    2, Iclass_MKSADJ_D_stateArgs, 0, 0 }
+    2, Iclass_MKSADJ_D_stateArgs, 0, 0 },
+  { 1, Iclass_xt_iclass_rsr_litbase_args,
+    2, Iclass_xt_iclass_rsr_litbase_stateArgs, 0, 0 },
+  { 1, Iclass_xt_iclass_wsr_litbase_args,
+    2, Iclass_xt_iclass_wsr_litbase_stateArgs, 0, 0 },
+  { 1, Iclass_xt_iclass_xsr_litbase_args,
+    2, Iclass_xt_iclass_xsr_litbase_stateArgs, 0, 0 }
 };
 
 enum xtensa_iclass_id {
@@ -9965,7 +10002,10 @@ enum xtensa_iclass_id {
   ICLASS_MKDADJ_S,
   ICLASS_MKDADJ_D,
   ICLASS_MKSADJ_S,
-  ICLASS_MKSADJ_D
+  ICLASS_MKSADJ_D,
+  ICLASS_xt_iclass_rsr_litbase,
+  ICLASS_xt_iclass_wsr_litbase,
+  ICLASS_xt_iclass_xsr_litbase
 };
 
 
@@ -13445,6 +13485,24 @@ Opcode_mksadj_d_Slot_inst_encode (xtensa_insnbuf slotbuf)
   slotbuf[0] = 0xff00c0;
 }
 
+static void
+Opcode_rsr_litbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
+{
+  slotbuf[0] = 0x30500;
+}
+
+static void
+Opcode_wsr_litbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
+{
+  slotbuf[0] = 0x130500;
+}
+
+static void
+Opcode_xsr_litbase_Slot_inst_encode (xtensa_insnbuf slotbuf)
+{
+  slotbuf[0] = 0x610500;
+}
+
 static xtensa_opcode_encode_fn Opcode_excw_encode_fns[] = {
   Opcode_excw_Slot_inst_encode, 0, 0
 };
@@ -15761,6 +15819,19 @@ static xtensa_opcode_encode_fn Opcode_mksadj_d_encode_fns[] = {
   Opcode_mksadj_d_Slot_inst_encode, 0, 0
 };
 
+static xtensa_opcode_encode_fn Opcode_rsr_litbase_encode_fns[] = {
+  Opcode_rsr_litbase_Slot_inst_encode, 0, 0
+};
+
+static xtensa_opcode_encode_fn Opcode_wsr_litbase_encode_fns[] = {
+  Opcode_wsr_litbase_Slot_inst_encode, 0, 0
+};
+
+static xtensa_opcode_encode_fn Opcode_xsr_litbase_encode_fns[] = {
+  Opcode_xsr_litbase_Slot_inst_encode, 0, 0
+};
+
+
 
 
 
@@ -17748,7 +17819,16 @@ static xtensa_opcode_internal opcodes[] = {
     Opcode_mksadj_s_encode_fns, 0, 0 },
   { "mksadj.d", ICLASS_MKSADJ_D,
     0,
-    Opcode_mksadj_d_encode_fns, 0, 0 }
+    Opcode_mksadj_d_encode_fns, 0, 0 },
+  { "rsr.litbase", ICLASS_xt_iclass_rsr_litbase,
+    0,
+    Opcode_rsr_litbase_encode_fns, 0, 0 },
+  { "wsr.litbase", ICLASS_xt_iclass_wsr_litbase,
+    0,
+    Opcode_wsr_litbase_encode_fns, 0, 0 },
+  { "xsr.litbase", ICLASS_xt_iclass_xsr_litbase,
+    0,
+    Opcode_xsr_litbase_encode_fns, 0, 0 }
 };
 
 enum xtensa_opcode_id {
@@ -18330,7 +18410,10 @@ enum xtensa_opcode_id {
   OPCODE_MKDADJ_S,
   OPCODE_MKDADJ_D,
   OPCODE_MKSADJ_S,
-  OPCODE_MKSADJ_D
+  OPCODE_MKSADJ_D,
+  OPCODE_RSR_LITBASE,
+  OPCODE_WSR_LITBASE,
+  OPCODE_XSR_LITBASE
 };
 
 
@@ -18553,6 +18636,8 @@ Slot_inst_decode (const xtensa_insnbuf insn)
 		return OPCODE_XSR_SAR;
 	      if (Field_sr_Slot_inst_get (insn) == 4)
 		return OPCODE_XSR_BR;
+	      if (Field_sr_Slot_inst_get (insn) == 5)
+		return OPCODE_XSR_LITBASE;
 	      if (Field_sr_Slot_inst_get (insn) == 12)
 		return OPCODE_XSR_SCOMPARE1;
 	      if (Field_sr_Slot_inst_get (insn) == 16)
@@ -18758,6 +18843,8 @@ Slot_inst_decode (const xtensa_insnbuf insn)
 		return OPCODE_RSR_SAR;
 	      if (Field_sr_Slot_inst_get (insn) == 4)
 		return OPCODE_RSR_BR;
+	      if (Field_sr_Slot_inst_get (insn) == 5)
+		return OPCODE_RSR_LITBASE;
 	      if (Field_sr_Slot_inst_get (insn) == 12)
 		return OPCODE_RSR_SCOMPARE1;
 	      if (Field_sr_Slot_inst_get (insn) == 16)
@@ -18899,6 +18986,8 @@ Slot_inst_decode (const xtensa_insnbuf insn)
 		return OPCODE_WSR_SAR;
 	      if (Field_sr_Slot_inst_get (insn) == 4)
 		return OPCODE_WSR_BR;
+	      if (Field_sr_Slot_inst_get (insn) == 5)
+		return OPCODE_WSR_LITBASE;
 	      if (Field_sr_Slot_inst_get (insn) == 12)
 		return OPCODE_WSR_SCOMPARE1;
 	      if (Field_sr_Slot_inst_get (insn) == 16)
@@ -20747,8 +20836,8 @@ xtensa_isa_internal xtensa_modules = {
   3, slots,
   72 /* num_fields */,
   132, operands,
-  444, iclasses,
-  579, opcodes, 0,
+  447, iclasses,
+  582, opcodes, 0,
   8, regfiles,
   NUM_STATES, states, 0,
   NUM_SYSREGS, sysregs, 0,
