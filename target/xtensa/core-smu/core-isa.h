@@ -612,9 +612,9 @@
 #define XCHAL_RESET_VECTOR1_PADDR	0x00001000
 #define XCHAL_RESET_VECTOR_VADDR	XCHAL_RESET_VECTOR0_VADDR
 #define XCHAL_RESET_VECTOR_PADDR	XCHAL_RESET_VECTOR0_PADDR
-#define XCHAL_USER_VECOFS		0x00000340
-#define XCHAL_USER_VECTOR_VADDR		0x00002340
-#define XCHAL_USER_VECTOR_PADDR		0x00002340
+#define XCHAL_USER_VECOFS		0x0000023c
+#define XCHAL_USER_VECTOR_VADDR		0x0000223c
+#define XCHAL_USER_VECTOR_PADDR		0x0000223c
 #define XCHAL_KERNEL_VECOFS		0x00000300
 #define XCHAL_KERNEL_VECTOR_VADDR	0x00002300
 #define XCHAL_KERNEL_VECTOR_PADDR	0x00002300
@@ -701,7 +701,7 @@
 
 /*  If none of the above last 5 are set, it's a custom TLB configuration.  */
 #define XCHAL_ITLB_ARF_ENTRIES_LOG2	2	/* log2(autorefill way size) */
-#define XCHAL_DTLB_ARF_ENTRIES_LOG2	2	/* log2(autorefill way size) */
+#define XCHAL_DTLB_ARF_ENTRIES_LOG2	3	/* log2(autorefill way size) */
 
 #define XCHAL_MMU_ASID_BITS		8	/* number of bits in ASIDs */
 #define XCHAL_MMU_RINGS			4	/* number of rings (1..4) */
