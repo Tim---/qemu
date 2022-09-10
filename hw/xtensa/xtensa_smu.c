@@ -46,6 +46,8 @@ static XtensaCPU *smu_common_init(MachineState *machine)
     };
     xtensa_create_memory_regions(&fw_mem, "xtensa.fw", get_system_memory());
 
+    create_unimplemented_device("priv-regs", 0x03200000, 0x00010000);
+
     return cpu;
 }
 
