@@ -66,7 +66,7 @@
 #define XCHAL_HAVE_MUL32_HIGH		0	/* MULUH/MULSH instructions */
 #define XCHAL_HAVE_DIV32		1	/* QUOS/QUOU/REMS/REMU instructions */
 #define XCHAL_HAVE_L32R			1	/* L32R instruction */
-#define XCHAL_HAVE_ABSOLUTE_LITERALS	0	/* non-PC-rel (extended) L32R */
+#define XCHAL_HAVE_ABSOLUTE_LITERALS	1	/* non-PC-rel (extended) L32R */
 #define XCHAL_HAVE_CONST16		0	/* CONST16 instruction */
 #define XCHAL_HAVE_ADDX			1	/* ADDX#/SUBX# instructions */
 #define XCHAL_HAVE_EXCLUSIVE            0	/* L32EX/S32EX instructions */
