@@ -9,6 +9,11 @@ config ZEN
     select UNIMP
     select FCH
     select ISA_BUS
+    select SMBUS
+    select ACPI
 
 config CCP
+    bool
+
+config PSP_DEVS
     bool
