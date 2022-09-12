@@ -49,8 +49,8 @@
 
 #define XCHAL_HAVE_BE			0	/* big-endian byte ordering */
 #define XCHAL_HAVE_WINDOWED		1	/* windowed registers option */
-#define XCHAL_NUM_AREGS			32	/* num of physical addr regs */
-#define XCHAL_NUM_AREGS_LOG2		5	/* log2(XCHAL_NUM_AREGS) */
+#define XCHAL_NUM_AREGS			64	/* num of physical addr regs */
+#define XCHAL_NUM_AREGS_LOG2		6	/* log2(XCHAL_NUM_AREGS) */
 #define XCHAL_MAX_INSTRUCTION_SIZE	3	/* max instr bytes (3..8) */
 #define XCHAL_HAVE_DEBUG		1	/* debug option */
 #define XCHAL_HAVE_DENSITY		1	/* 16-bit instructions */
