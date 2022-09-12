@@ -11,6 +11,8 @@
 #include "hw/misc/unimp.h"
 #include "hw/zen/psp-smn-bridge.h"
 #include "hw/zen/zen-utils.h"
+#include "hw/zen/psp-intc.h"
+#include "hw/zen/psp-timer.h"
 
 #define FW_ADDR 0x00000000
 #define FW_SIZE 0x40000
@@ -33,9 +35,29 @@ static MemoryRegion *create_smn(void)
     object_property_set_link(OBJECT(dev), "source-memory",
                              OBJECT(smn_region), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    memory_region_add_subregion(get_system_memory(), 0x03220000, sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
-    memory_region_add_subregion(get_system_memory(), 0x01000000, sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1));
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03220000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x01000000);
+
     return smn_region;
+}
+
+static DeviceState *create_intc(void)
+{
+    DeviceState *dev = qdev_new(TYPE_PSP_INTC);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03010300);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x03200300);
+    //sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(cpu, ARM_CPU_FIQ));
+    return dev;
+}
+
+static DeviceState *create_timer(int i)
+{
+    DeviceState *dev = qdev_new(TYPE_PSP_TIMER);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03200400 + i * 0x24);
+    //sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(cpu, ARM_CPU_FIQ));
+    return dev;
 }
 
 static XtensaCPU *smu_common_init(MachineState *machine)
@@ -75,6 +97,10 @@ static XtensaCPU *smu_common_init(MachineState *machine)
     create_unimplemented_device_generic(smn, "smuthm", 0x59800, 0x0800);
     create_unimplemented_device_generic(smn, "smuio",  0x5a000, 0x1000);
     create_unimplemented_device_generic(smn, "fuses",  0x5d000, 0x1000);
+
+    create_intc();
+    create_timer(0);
+    create_timer(1);
 
     return cpu;
 }
