@@ -26,37 +26,44 @@ static void smu_reset(void *opaque)
     env->pc = FW_ADDR + 0x100;
 }
 
-static MemoryRegion *create_smn(void)
+static MemoryRegion *create_smn_region(void)
 {
     MemoryRegion *smn_region = g_malloc0(sizeof(*smn_region));
     create_region_with_unimpl(smn_region, NULL, "smn", 0x100000000UL);
 
+    return smn_region;
+}
+
+static DeviceState *create_smn_bridge(MemoryRegion *smn_region)
+{
     DeviceState *dev = qdev_new(TYPE_SMN_BRIDGE);
     object_property_set_link(OBJECT(dev), "source-memory",
                              OBJECT(smn_region), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03220000);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x01000000);
-
-    return smn_region;
+    return dev;
 }
 
-static DeviceState *create_intc(void)
+static DeviceState *create_intc(XtensaCPU *cpu)
 {
     DeviceState *dev = qdev_new(TYPE_PSP_INTC);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03010300);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x03200300);
-    //sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(cpu, ARM_CPU_FIQ));
+
+    qemu_irq *extints = xtensa_get_extints(&cpu->env);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, extints[0]);
     return dev;
 }
 
-static DeviceState *create_timer(int i)
+static DeviceState *create_timer(DeviceState *intc, int i)
 {
     DeviceState *dev = qdev_new(TYPE_PSP_TIMER);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03200400 + i * 0x24);
-    //sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(cpu, ARM_CPU_FIQ));
+    if(i == 0)
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(intc, 0x60));
     return dev;
 }
 
@@ -64,16 +71,13 @@ static XtensaCPU *smu_common_init(MachineState *machine)
 {
     XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
-    int n;
 
-    for (n = 0; n < machine->smp.cpus; n++) {
-        cpu = XTENSA_CPU(cpu_create(machine->cpu_type));
-        env = &cpu->env;
+    cpu = XTENSA_CPU(cpu_create(machine->cpu_type));
+    env = &cpu->env;
 
-        env->sregs[PRID] = n;
-        qemu_register_reset(smu_reset, cpu);
-        smu_reset(cpu);
-    }
+    env->sregs[PRID] = 0;
+    qemu_register_reset(smu_reset, cpu);
+    smu_reset(cpu);
 
     XtensaMemory fw_mem = {
         .num = 1,
@@ -93,14 +97,16 @@ static XtensaCPU *smu_common_init(MachineState *machine)
     create_unimplemented_device("intc[0]",   0x03200200, 0x00000100);
     create_unimplemented_device("intc[1]",   0x03200300, 0x00000100);
 
-    MemoryRegion *smn = create_smn();
-    create_unimplemented_device_generic(smn, "smuthm", 0x59800, 0x0800);
-    create_unimplemented_device_generic(smn, "smuio",  0x5a000, 0x1000);
-    create_unimplemented_device_generic(smn, "fuses",  0x5d000, 0x1000);
+    MemoryRegion *smn_region = create_smn_region();
+    create_unimplemented_device_generic(smn_region, "smuthm", 0x59800, 0x0800);
+    create_unimplemented_device_generic(smn_region, "smuio",  0x5a000, 0x1000);
+    create_unimplemented_device_generic(smn_region, "fuses",  0x5d000, 0x1000);
 
-    create_intc();
-    create_timer(0);
-    create_timer(1);
+    create_smn_bridge(smn_region);
+
+    DeviceState *intc = create_intc(cpu);
+    create_timer(intc, 0);
+    create_timer(intc, 1);
 
     return cpu;
 }
