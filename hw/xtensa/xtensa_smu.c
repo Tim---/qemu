@@ -63,6 +63,8 @@ static XtensaCPU *smu_common_init(MachineState *machine)
 
     create_unimplemented_device("pub-regs",  0x03010000, 0x00010000);
     create_unimplemented_device("priv-regs", 0x03200000, 0x00010000);
+    create_unimplemented_device("dev0321",   0x03210000, 0x00010000);
+    create_unimplemented_device("dev0327",   0x03270000, 0x00010000);
     
     create_smn();
 
