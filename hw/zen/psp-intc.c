@@ -5,6 +5,17 @@
 #include "hw/zen/psp-intc.h"
 #include "trace.h"
 #include "hw/irq.h"
+#include "qemu/range.h"
+
+//#define DEBUG_PSP_INTC
+
+#ifdef DEBUG_PSP_INTC
+#define DPRINTF(fmt, ...) \
+    do { qemu_log_mask(LOG_UNIMP, "%s: " fmt, __func__, ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...) \
+    do { } while (0)
+#endif
 
 OBJECT_DECLARE_SIMPLE_TYPE(PspIntcState, PSP_INTC)
 
@@ -18,12 +29,9 @@ struct PspIntcState {
     /*< public >*/
     MemoryRegion regs_public;
     MemoryRegion regs_private;
-    uint32_t enabled[PSP_INTC_ARRAY_SIZE];
     uint32_t active[PSP_INTC_ARRAY_SIZE];
-    uint32_t a[PSP_INTC_ARRAY_SIZE];
-    uint32_t b[PSP_INTC_ARRAY_SIZE];
-    uint32_t current_int;
     qemu_irq irq;
+    uint8_t storage[0x100];
 };
 
 REG32(INT_ENABLE0,      0x00)
@@ -46,7 +54,7 @@ REG32(INT_B3,           0x2c)
 /* Unknown. Interrupts priority ? */
 REG8(INT_C0,            0x30)
 // ...
-REG8(INT_C23,           0x47)
+REG8(INT_C127,          0xaf)
 
 REG32(INT_ACK0,         0xb0)
 REG32(INT_ACK1,         0xb4)
@@ -56,103 +64,83 @@ REG32(INT_ACK3,         0xbc)
 REG32(NO_MORE_INT,      0xc0)
 REG32(INT_NUM,          0xc4)
 
-static void psp_int_irq_update(PspIntcState *pis)
+static inline uint32_t get_reg32(PspIntcState *s, hwaddr offset)
+{
+    return ldl_le_p(s->storage + offset);
+}
+
+static inline void set_reg32(PspIntcState *s, hwaddr offset, uint32_t value)
+{
+    stl_le_p(s->storage + offset, value);
+}
+
+static uint32_t psp_intc_get_current_num(PspIntcState *s)
 {
     int reg, bit;
-
-    pis->current_int = 0xffffffff;
+    uint32_t enabled, valid;
 
     for (reg = 0; reg < PSP_INTC_ARRAY_SIZE; reg++) {
-        uint32_t valid = pis->active[reg] & pis->enabled[reg];
+        enabled = get_reg32(s, A_INT_ENABLE0 + reg * 4);
+        valid = s->active[reg] & enabled;
         if (valid) { 
             for (bit = 0; bit < 32; bit++) {
                 if ((valid >> bit) & 1) {
-                    pis->current_int = reg * 32 + bit;
+                    return reg * 32 + bit;
                 }
             }
         }
     }
 
-    qemu_set_irq(pis->irq, pis->current_int != 0xffffffff);
+    return 0xffffffff;
 }
 
-static void set_int_enable(PspIntcState *pis, size_t index, uint64_t data)
+static void psp_intc_irq_update(PspIntcState *s)
 {
-    uint32_t new_enabled = data & ~pis->enabled[index];
-    uint32_t new_disabled = ~data & pis->enabled[index];
+    uint32_t int_num = psp_intc_get_current_num(s);
 
-    for (int i = 0; i < 32; i++) {
-        if ((new_enabled >> i) & 1) {
-            trace_psp_intc_enable(index * 32 + i);
-        }
-        if ((new_disabled >> i) & 1) {
-            trace_psp_intc_disable(index * 32 + i);
-        }
-    }
-    pis->enabled[index] = data;
+    DPRINTF("current IRQ: 0x%x\n", int_num);
 
-    psp_int_irq_update(pis);
+    set_reg32(s, A_INT_NUM, int_num);
+    set_reg32(s, A_NO_MORE_INT, int_num == 0xffffffff);
+    qemu_set_irq(s->irq, int_num != 0xffffffff);
 }
 
-static void set_int_ack(PspIntcState *pis, size_t index, uint64_t data)
+static void psp_intc_update_ack(PspIntcState *s)
 {
-    for (int i = 0; i < 32; i++) {
-        if ((data >> i) & 1) {
-            trace_psp_intc_ack(index * 32 + i);
-        }
+    for(int i = 0; i < 4; i++) {
+        uint32_t ack = get_reg32(s, A_INT_ACK0 + 4 * i);
+        s->active[i] &= ~ack;
+        set_reg32(s, A_INT_ACK0 + 4 * i, 0);
     }
-    pis->active[index] &= ~data;
 
-    psp_int_irq_update(pis);
+    psp_intc_irq_update(s);
 }
-
 
 static uint64_t psp_intc_read(void *opaque, hwaddr offset, unsigned size)
 {
-    PspIntcState *pis = PSP_INTC(opaque);
-    size_t index = offset / 4;
+    PspIntcState *s = PSP_INTC(opaque);
 
-    switch (index) {
-    case R_INT_ENABLE0 ... R_INT_ENABLE3:
-        return pis->enabled[index - R_INT_ENABLE0];
-    case R_NO_MORE_INT:
-        return pis->current_int == 0xffffffff;
-    case R_INT_NUM:
-        return pis->current_int;
-    case R_INT_A0 ... R_INT_A3:
-        return pis->a[index - R_INT_A0];
-    case R_INT_B0 ... R_INT_B3:
-        return pis->b[index - R_INT_B0];
-    }
+    DPRINTF("unimplemented device read  (offset 0x%lx, size 0x%x)\n", offset, size);
 
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx)\n", __func__, offset);
-    return 0;
+    return ldn_le_p(s->storage + offset, size);
 }
 
 static void psp_intc_write(void *opaque, hwaddr offset,
                             uint64_t data, unsigned size)
 {
-    PspIntcState *pis = PSP_INTC(opaque);
-    size_t index = offset / 4;
+    PspIntcState *s = PSP_INTC(opaque);
 
-    switch (index) {
-    case R_INT_ENABLE0 ... R_INT_ENABLE3:
-        set_int_enable(pis, index - R_INT_ENABLE0, data);
-        return;
-    case R_INT_A0 ... R_INT_A3:
-        pis->a[index - R_INT_A0] = data;
-        return;
-    case R_INT_B0 ... R_INT_B3:
-        pis->b[index - R_INT_B0] = data;
-        return;
-    case R_INT_ACK0 ... R_INT_ACK3:
-        set_int_ack(pis, index - R_INT_ACK0, data);
-        return;
+    DPRINTF("unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", offset, size, data);
+
+    stn_le_p(s->storage + offset, size, data);
+
+    if(ranges_overlap(offset, size, A_INT_ACK0, 0x10)) {
+        psp_intc_update_ack(s);
     }
 
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
-                "(offset 0x%lx, value 0x%lx)\n", __func__, offset, data);
+    if(ranges_overlap(offset, size, A_INT_ENABLE0, 0x10)) {
+        psp_intc_irq_update(s);
+    }
 }
 
 const MemoryRegionOps psp_intc_ops = {
@@ -178,20 +166,22 @@ static void psp_intc_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq);
 }
 
-static void psp_int_set_irq(void *opaque, int n_IRQ, int level)
+static void psp_intc_set_irq(void *opaque, int n_IRQ, int level)
 {
-    PspIntcState *pis = PSP_INTC(opaque);
+    PspIntcState *s = PSP_INTC(opaque);
 
-    pis->active[n_IRQ >> 5] = deposit32(pis->active[n_IRQ >> 5], n_IRQ & 0x1f, 1, level);
-    psp_int_irq_update(pis);
+    DPRINTF("IRQ 0x%x -> level %d\n", n_IRQ, level);
+
+    s->active[n_IRQ >> 5] = deposit32(s->active[n_IRQ >> 5], n_IRQ & 0x1f, 1, level);
+    psp_intc_irq_update(s);
 }
 
 static void psp_intc_realize(DeviceState *dev, Error **errp)
 {
-    PspIntcState *pis = PSP_INTC(dev);
+    PspIntcState *s = PSP_INTC(dev);
 
-    qdev_init_gpio_in(DEVICE(dev), psp_int_set_irq, PSP_INTC_NUM_IRQS);
-    psp_int_irq_update(pis);
+    qdev_init_gpio_in(DEVICE(dev), psp_intc_set_irq, PSP_INTC_NUM_IRQS);
+    psp_intc_irq_update(s);
 }
 
 static void psp_intc_class_init(ObjectClass *oc, void *data)
