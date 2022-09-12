@@ -43,6 +43,11 @@ REG32(INT_B1,           0x24)
 REG32(INT_B2,           0x28)
 REG32(INT_B3,           0x2c)
 
+/* Unknown. Interrupts priority ? */
+REG8(INT_C0,            0x30)
+// ...
+REG8(INT_C23,           0x47)
+
 REG32(INT_ACK0,         0xb0)
 REG32(INT_ACK1,         0xb4)
 REG32(INT_ACK2,         0xb8)
@@ -102,7 +107,7 @@ static void set_int_ack(PspIntcState *pis, size_t index, uint64_t data)
 }
 
 
-static uint64_t psp_intc_public_read(void *opaque, hwaddr offset, unsigned size)
+static uint64_t psp_intc_read(void *opaque, hwaddr offset, unsigned size)
 {
     PspIntcState *pis = PSP_INTC(opaque);
     size_t index = offset / 4;
@@ -114,6 +119,10 @@ static uint64_t psp_intc_public_read(void *opaque, hwaddr offset, unsigned size)
         return pis->current_int == 0xffffffff;
     case R_INT_NUM:
         return pis->current_int;
+    case R_INT_A0 ... R_INT_A3:
+        return pis->a[index - R_INT_A0];
+    case R_INT_B0 ... R_INT_B3:
+        return pis->b[index - R_INT_B0];
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
@@ -121,7 +130,7 @@ static uint64_t psp_intc_public_read(void *opaque, hwaddr offset, unsigned size)
     return 0;
 }
 
-static void psp_intc_public_write(void *opaque, hwaddr offset,
+static void psp_intc_write(void *opaque, hwaddr offset,
                             uint64_t data, unsigned size)
 {
     PspIntcState *pis = PSP_INTC(opaque);
@@ -146,54 +155,10 @@ static void psp_intc_public_write(void *opaque, hwaddr offset,
                 "(offset 0x%lx, value 0x%lx)\n", __func__, offset, data);
 }
 
-const MemoryRegionOps psp_intc_public_ops = {
-    .read = psp_intc_public_read,
-    .write = psp_intc_public_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .valid.unaligned = false,
-};
-
-static uint64_t psp_intc_private_read(void *opaque, hwaddr offset, unsigned size)
-{
-    PspIntcState *pis = PSP_INTC(opaque);
-    size_t index = offset / 4;
-
-    switch (index) {
-    case R_INT_A0 ... R_INT_A3:
-        return pis->a[index - R_INT_A0];
-    case R_INT_B0 ... R_INT_B3:
-        return pis->b[index - R_INT_B0];
-    }
-
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
-                "(offset 0x%lx)\n", __func__, offset);
-    return 0;
-}
-
-static void psp_intc_private_write(void *opaque, hwaddr offset,
-                            uint64_t data, unsigned size)
-{
-    PspIntcState *pis = PSP_INTC(opaque);
-    size_t index = offset / 4;
-
-    switch (index) {
-    case R_INT_A0 ... R_INT_A3:
-        pis->a[index - R_INT_A0] = data;
-        return;
-    case R_INT_B0 ... R_INT_B3:
-        pis->b[index - R_INT_B0] = data;
-        return;
-    }
-
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write  "
-                "(offset 0x%lx, value 0x%lx)\n", __func__, offset, data);
-}
-
-const MemoryRegionOps psp_intc_private_ops = {
-    .read = psp_intc_private_read,
-    .write = psp_intc_private_write,
-    .valid.min_access_size = 4,
+const MemoryRegionOps psp_intc_ops = {
+    .read = psp_intc_read,
+    .write = psp_intc_write,
+    .valid.min_access_size = 1,
     .valid.max_access_size = 4,
     .valid.unaligned = false,
 };
@@ -203,10 +168,10 @@ static void psp_intc_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PspIntcState *s = PSP_INTC(obj);
 
-    memory_region_init_io(&s->regs_public, OBJECT(s), &psp_intc_public_ops, s,
+    memory_region_init_io(&s->regs_public, OBJECT(s), &psp_intc_ops, s,
                           "psp-intc-public", 0x100);
     sysbus_init_mmio(sbd, &s->regs_public);
-    memory_region_init_io(&s->regs_private, OBJECT(s), &psp_intc_private_ops, s,
+    memory_region_init_io(&s->regs_private, OBJECT(s), &psp_intc_ops, s,
                           "psp-intc-private", 0x100);
     sysbus_init_mmio(sbd, &s->regs_private);
 
