@@ -5,6 +5,18 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "hw/irq.h"
+#include "qemu/log.h"
+#include "qemu/range.h"
+
+//#define DEBUG_PSP_TIMER
+
+#ifdef DEBUG_PSP_TIMER
+#define DPRINTF(fmt, ...) \
+    do { qemu_log_mask(LOG_UNIMP, "%s: " fmt, __func__, ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...) \
+    do { } while (0)
+#endif
 
 OBJECT_DECLARE_SIMPLE_TYPE(PspTimerState, PSP_TIMER)
 
@@ -24,14 +36,11 @@ struct PspTimerState {
 
     ptimer_state *ptimer;
     psp_timer_state_e state;
-    uint32_t ctrl0;
-    uint32_t ctrl1;
-    uint32_t ctrl2;
-    uint32_t int_enable;
-    uint32_t interval;
 
     int64_t start_time;
     qemu_irq irq;
+
+    uint8_t storage[0x24];
 };
 
 /**
@@ -72,33 +81,47 @@ REG32(INT_ENABLE,   0x0C)
 REG32(INTERVAL,     0x10)
 REG32(VALUE,        0x20)
 
+static inline uint32_t get_reg32(PspTimerState *s, hwaddr offset)
+{
+    return ldl_le_p(s->storage + offset);
+}
+
+static inline void set_reg32(PspTimerState *s, hwaddr offset, uint32_t value)
+{
+    stl_le_p(s->storage + offset, value);
+}
+
 static void psp_timer_hit(void *opaque)
 {
     PspTimerState *s = PSP_TIMER(opaque);
 
-    if(s->int_enable)
+    if(get_reg32(s, A_INT_ENABLE))
         qemu_irq_raise(s->irq);
+}
+
+static void psp_timer_update_value(PspTimerState *s)
+{
+    assert(s->state == STATE_COUNT);
+    uint32_t value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->start_time;
+    set_reg32(s, A_VALUE, value);
 }
 
 static void psp_timer_execute(PspTimerState *s)
 {
+    uint32_t ctrl0 = get_reg32(s, A_CTRL0);
+
     ptimer_transaction_begin(s->ptimer);
 
-    switch(s->ctrl0) {
-    case 0:
+    if((ctrl0 & 1) == 0) {
         s->state = STATE_STOPPED;
         ptimer_stop(s->ptimer);
-        break;
-    case 0x101:
+    } else if(ctrl0 & 0x10000) {
+        s->state = STATE_INTERVAL;
+        ptimer_run(s->ptimer, 0);
+    } else {
         s->state = STATE_COUNT;
         s->start_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         ptimer_stop(s->ptimer);
-        break;
-    case 0x10001:
-    case 0x10101:
-        s->state = STATE_INTERVAL;
-        ptimer_run(s->ptimer, 0);
-        break;
     }
 
     ptimer_transaction_commit(s->ptimer);
@@ -108,15 +131,13 @@ static uint64_t psp_timer_read(void *opaque, hwaddr offset, unsigned size)
 {
     PspTimerState *s = PSP_TIMER(opaque);
 
-    switch (offset) {
-    case A_VALUE:
-        assert(s->state == STATE_COUNT);
-        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->start_time;
-    default:
-        g_assert_not_reached();
+    DPRINTF("unimplemented device read  (offset 0x%lx, size 0x%x)\n", offset, size);
+
+    if(ranges_overlap(offset, size, A_VALUE, 4)) {
+        psp_timer_update_value(s);
     }
 
-    return 0;
+    return ldn_le_p(s->storage + offset, size);
 }
 
 static void psp_timer_write(void *opaque, hwaddr offset,
@@ -124,35 +145,19 @@ static void psp_timer_write(void *opaque, hwaddr offset,
 {
     PspTimerState *s = PSP_TIMER(opaque);
 
-    switch (offset) {
-    case A_CTRL0:
-        s->ctrl0 = data;
+    DPRINTF("unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", offset, size, data);
+
+    stn_le_p(s->storage + offset, size, data);
+
+    if(ranges_overlap(offset, size, A_CTRL0, 4)) {
         psp_timer_execute(s);
-        return;
-    case A_CTRL1:
-        assert(data == 0 || data == 0x100);
-        s->ctrl1 = data;
-        return;
-    case A_CTRL2:
-        assert(data == 0);
-        s->ctrl2 = data;
-        return;
-    case A_INT_ENABLE:
-        assert(data == 0 || data == 1);
-        s->int_enable = data;
-        return;
-    case A_INTERVAL:
-        s->interval = data;
-        return;
-    default:
-        assert(data == 0);
     }
 }
 
 const MemoryRegionOps psp_timer_ops = {
     .read = psp_timer_read,
     .write = psp_timer_write,
-    .valid.min_access_size = 4,
+    .valid.min_access_size = 1,
     .valid.max_access_size = 4,
     .valid.unaligned = false,
 };
