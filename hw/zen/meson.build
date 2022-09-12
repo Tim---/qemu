@@ -7,10 +7,10 @@ specific_ss.add(when: 'CONFIG_ZEN', if_true: files(
     'psp-dirty.c', 'psp-fuses.c', 'zen-pmu.c', 'dxio.c',
 ))
 specific_ss.add(when: 'CONFIG_PSP', if_true: files(
-    'psp-regs.c', 'psp-ocbl.c', 'psp-timer.c', 'psp-soc.c', 'psp-intc.c'
+    'psp-regs.c', 'psp-ocbl.c', 'psp-soc.c', 
 ))
 specific_ss.add(when: 'CONFIG_PSP_DEVS', if_true: files(
-    'psp-smn-bridge.c', 'psp-ht-bridge.c',
+    'psp-smn-bridge.c', 'psp-ht-bridge.c', 'psp-intc.c', 'psp-timer.c',
 ))
 
 specific_ss.add(when: 'CONFIG_CCP', if_true: files('ccp.c', 'ccp-ops.c'))

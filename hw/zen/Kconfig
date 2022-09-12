@@ -17,3 +17,4 @@ config CCP
 
 config PSP_DEVS
     bool
+    select PTIMER
