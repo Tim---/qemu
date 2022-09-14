@@ -120,10 +120,6 @@ static XtensaCPU *smu_common_init(MachineState *machine)
     create_unimplemented_device("priv-regs", 0x03200000, 0x00010000);
     create_unimplemented_device("dev0321",   0x03210000, 0x00010000);
     create_unimplemented_device("dev0327",   0x03270000, 0x00010000);
-    create_unimplemented_device("timer[0]",  0x03200400, 0x00000024);
-    create_unimplemented_device("timer[1]",  0x03200424, 0x00000024);
-    create_unimplemented_device("intc[0]",   0x03200200, 0x00000100);
-    create_unimplemented_device("intc[1]",   0x03200300, 0x00000100);
 
     MemoryRegion *smn_region = create_smn_region();
     create_unimplemented_device_generic(smn_region, "smuthm", 0x59800, 0x0800);
