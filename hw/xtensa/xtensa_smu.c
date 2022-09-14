@@ -20,6 +20,9 @@
 #define FW_ADDR 0x00000000
 #define FW_SIZE 0x80000
 
+#define PAGES_ADDR 0xFFC00000
+#define PAGES_SIZE 0x00400000
+
 static void smu_reset(void *opaque)
 {
     XtensaCPU *cpu = opaque;
@@ -28,6 +31,49 @@ static void smu_reset(void *opaque)
     cpu_reset(CPU(cpu));
     env->pc = FW_ADDR + 0x100;
 }
+
+/*
+Memory region: page cache
+*/
+static MemTxResult pages_read_with_attrs(void *opaque, hwaddr addr, uint64_t *data, unsigned size, MemTxAttrs attrs)
+{
+    return MEMTX_ACCESS_ERROR;
+}
+
+static MemTxResult pages_write_with_attrs(void *opaque, hwaddr addr, uint64_t data, unsigned size, MemTxAttrs attrs)
+{
+    return MEMTX_ACCESS_ERROR;
+}
+
+const MemoryRegionOps pages_ops = {
+    .read_with_attrs = pages_read_with_attrs,
+    .write_with_attrs = pages_write_with_attrs,
+};
+
+static uint64_t smn_unmpl_read(void *opaque, hwaddr offset, unsigned size)
+{
+    uint64_t res = 0;
+
+    switch(offset) {
+    case 0x490:
+        /* For SMUv10 */
+        return 0xffffffff;
+    }
+
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  (offset 0x%lx, size 0x%x)\n", __func__, offset, size);
+    return res;
+}
+
+static void smn_unmpl_write(void *opaque, hwaddr offset,
+                            uint64_t data, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", __func__, offset, size, data);
+}
+
+const MemoryRegionOps smn_unmpl_ops = {
+    .read = smn_unmpl_read,
+    .write = smn_unmpl_write,
+};
 
 static uint64_t dev_5b_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -40,7 +86,7 @@ static uint64_t dev_5b_read(void *opaque, hwaddr offset, unsigned size)
     When the firmware writes some values, it waits for the last register to have bit 16 enabled (ACK ?).
     */
     for(int i = 0; i < 12; i++) {
-        if(offset == 0xfc + i * 40 + 0x24) {
+        if(offset == 0x104 + i * 40 + 0x24) {
             res = 0x10000;
         }
     }
@@ -132,7 +178,7 @@ static void create_regs(void)
 static MemoryRegion *create_smn_region(void)
 {
     MemoryRegion *smn_region = g_malloc0(sizeof(*smn_region));
-    create_region_with_unimpl(smn_region, NULL, "smn", 0x100000000UL);
+    memory_region_init_io(smn_region, NULL, &smn_unmpl_ops, NULL, "smn", 0x100000000UL);
 
     return smn_region;
 }
@@ -218,9 +264,11 @@ static void create_mailboxes(DeviceState *intc)
 
 static void create_dev_5b(MemoryRegion *smn_region)
 {
-    MemoryRegion *region = g_malloc0(sizeof(*region));
-    memory_region_init_io(region, NULL, &dev_5b_ops, NULL, "dev-5b", 0x1000);
-    memory_region_add_subregion(smn_region, 0x5b000, region);
+    for(int i = 0; i < 2; i++) {
+        MemoryRegion *region = g_malloc0(sizeof(*region));
+        memory_region_init_io(region, NULL, &dev_5b_ops, NULL, "dev-5b", 0x800);
+        memory_region_add_subregion(smn_region, 0x5b000 + i * 0x800, region);
+    }
 }
 
 static XtensaCPU *smu_common_init(MachineState *machine)
@@ -243,6 +291,10 @@ static XtensaCPU *smu_common_init(MachineState *machine)
         }
     };
     xtensa_create_memory_regions(&fw_mem, "xtensa.fw", get_system_memory());
+
+    MemoryRegion *pages_region = g_malloc0(sizeof(*pages_region));
+    memory_region_init_io(pages_region, NULL, &pages_ops, NULL, "pages", PAGES_SIZE);
+    memory_region_add_subregion(get_system_memory(), PAGES_ADDR, pages_region);
 
     create_unimplemented_device("dev0321",   0x03210000, 0x00010000);
     create_unimplemented_device("dev0327",   0x03270000, 0x00010000);
