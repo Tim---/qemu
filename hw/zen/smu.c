@@ -184,7 +184,10 @@ SmuConfig smu_configs[] = {
 
 static void smu_mb1_execute(SmuState *s)
 {
-    qemu_log_mask(LOG_UNIMP, "%s: execute (cmd=0x%x)\n", __func__, s->mb1_cmd);
+    qemu_log_mask(LOG_UNIMP, "%s: execute (cmd=0x%x, data=0x%x 0x%x 0x%x 0x%x 0x%x 0x%x)\n",
+                  __func__, s->mb1_cmd,
+                  s->mb1_data[0], s->mb1_data[1], s->mb1_data[2],
+                  s->mb1_data[3], s->mb1_data[4], s->mb1_data[5]);
     for(int i = 0; i < 6; i++)
         s->mb1_data[i] = 0;
     
