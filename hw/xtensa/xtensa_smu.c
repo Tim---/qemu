@@ -18,7 +18,7 @@
 #include "qemu/log.h"
 
 #define FW_ADDR 0x00000000
-#define FW_SIZE 0x40000
+#define FW_SIZE 0x80000
 
 static void smu_reset(void *opaque)
 {
