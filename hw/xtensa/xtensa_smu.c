@@ -10,10 +10,12 @@
 #include "exec/address-spaces.h"
 #include "hw/misc/unimp.h"
 #include "hw/zen/psp-smn-bridge.h"
+#include "hw/zen/psp-ht-bridge.h"
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/psp-intc.h"
 #include "hw/zen/psp-timer.h"
 #include "hw/zen/psp-mb.h"
+#include "qemu/log.h"
 
 #define FW_ADDR 0x00000000
 #define FW_SIZE 0x40000
@@ -27,12 +29,120 @@ static void smu_reset(void *opaque)
     env->pc = FW_ADDR + 0x100;
 }
 
+static uint64_t dev_5b_read(void *opaque, hwaddr offset, unsigned size)
+{
+    uint64_t res = 0;
+
+    /*
+    The device at 0x5b000 is divided in 2 blocks of size 0x800.
+    Each block seems to describe 12 "things".
+    At offset 0xfc, we have 12 regions of size 40.
+    When the firmware writes some values, it waits for the last register to have bit 16 enabled (ACK ?).
+    */
+    for(int i = 0; i < 12; i++) {
+        if(offset == 0xfc + i * 40 + 0x24) {
+            res = 0x10000;
+        }
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  (offset 0x%lx, size 0x%x)\n", __func__, offset, size);
+    return res;
+}
+
+static void dev_5b_write(void *opaque, hwaddr offset,
+                            uint64_t data, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", __func__, offset, size, data);
+}
+
+const MemoryRegionOps dev_5b_ops = {
+    .read = dev_5b_read,
+    .write = dev_5b_write,
+};
+
+static uint64_t regs_read(const char *name, hwaddr offset, unsigned size)
+{
+    switch(offset) {
+    case 0x54:
+    case 0x56:
+        return 0; // noisy
+    case 0x58:
+        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    case 0x5c:
+        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 32;
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  (offset 0x%lx, size 0x%x)\n", name, offset, size);
+    return 0;
+}
+
+static void regs_write(const char *name, hwaddr offset, uint64_t data, unsigned size)
+{
+    switch(offset) {
+    case 0x54:
+    case 0x56:
+        return; // noisy
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", name, offset, size, data);
+}
+
+static uint64_t priv_regs_read(void *opaque, hwaddr offset, unsigned size)
+{
+    return regs_read("regs-priv", offset, size);
+}
+
+static void priv_regs_write(void *opaque, hwaddr offset,
+                            uint64_t data, unsigned size)
+{
+    regs_write("regs-priv", offset, data, size);
+}
+
+const MemoryRegionOps priv_regs_ops = {
+    .read = priv_regs_read,
+    .write = priv_regs_write,
+};
+
+static uint64_t pub_regs_read(void *opaque, hwaddr offset, unsigned size)
+{
+    return regs_read("regs-pub", offset, size);
+}
+
+static void pub_regs_write(void *opaque, hwaddr offset,
+                            uint64_t data, unsigned size)
+{
+    regs_write("regs-pub", offset, data, size);
+}
+
+const MemoryRegionOps pub_regs_ops = {
+    .read = pub_regs_read,
+    .write = pub_regs_write,
+};
+
+static void create_regs_region(const char *name, hwaddr addr, const MemoryRegionOps *ops)
+{
+    MemoryRegion *region = g_malloc0(sizeof(*region));
+    memory_region_init_io(region, NULL, ops, NULL, name, 0x1000);
+    memory_region_add_subregion(get_system_memory(), addr, region);
+}
+
+static void create_regs(void)
+{
+    create_regs_region("regs-pub", 0x03010000, &pub_regs_ops);
+    create_regs_region("regs-priv", 0x03200000, &priv_regs_ops);
+}
+
 static MemoryRegion *create_smn_region(void)
 {
     MemoryRegion *smn_region = g_malloc0(sizeof(*smn_region));
     create_region_with_unimpl(smn_region, NULL, "smn", 0x100000000UL);
 
     return smn_region;
+}
+
+static MemoryRegion *create_ht_region(void)
+{
+    MemoryRegion *ht_region = g_malloc0(sizeof(*ht_region));
+    create_region_with_unimpl(ht_region, NULL, "ht", 0x1000000000000ULL);
+
+    return ht_region;
 }
 
 static DeviceState *create_smn_bridge(MemoryRegion *smn_region)
@@ -43,6 +153,17 @@ static DeviceState *create_smn_bridge(MemoryRegion *smn_region)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03220000);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x01000000);
+    return dev;
+}
+
+static DeviceState *create_ht_bridge(MemoryRegion *smn_region)
+{
+    DeviceState *dev = qdev_new(TYPE_HT_BRIDGE);
+    object_property_set_link(OBJECT(dev), "source-memory",
+                             OBJECT(smn_region), &error_fatal);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x03230000);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, 0x04000000);
     return dev;
 }
 
@@ -95,6 +216,13 @@ static void create_mailboxes(DeviceState *intc)
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, qdev_get_gpio_in(intc, 0x50 + i));
 }
 
+static void create_dev_5b(MemoryRegion *smn_region)
+{
+    MemoryRegion *region = g_malloc0(sizeof(*region));
+    memory_region_init_io(region, NULL, &dev_5b_ops, NULL, "dev-5b", 0x1000);
+    memory_region_add_subregion(smn_region, 0x5b000, region);
+}
+
 static XtensaCPU *smu_common_init(MachineState *machine)
 {
     XtensaCPU *cpu = NULL;
@@ -116,10 +244,10 @@ static XtensaCPU *smu_common_init(MachineState *machine)
     };
     xtensa_create_memory_regions(&fw_mem, "xtensa.fw", get_system_memory());
 
-    create_unimplemented_device("pub-regs",  0x03010000, 0x00010000);
-    create_unimplemented_device("priv-regs", 0x03200000, 0x00010000);
     create_unimplemented_device("dev0321",   0x03210000, 0x00010000);
     create_unimplemented_device("dev0327",   0x03270000, 0x00010000);
+
+    create_regs();
 
     MemoryRegion *smn_region = create_smn_region();
     create_unimplemented_device_generic(smn_region, "smuthm", 0x59800, 0x0800);
@@ -128,11 +256,15 @@ static XtensaCPU *smu_common_init(MachineState *machine)
 
     create_smn_bridge(smn_region);
 
+    MemoryRegion *ht_region = create_ht_region();
+    create_ht_bridge(ht_region);
+
     DeviceState *intc = create_intc(cpu);
     create_timer(intc, 0);
     create_timer(intc, 1);
 
     create_mailboxes(intc);
+    create_dev_5b(smn_region);
 
     return cpu;
 }
