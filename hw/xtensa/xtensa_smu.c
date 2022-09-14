@@ -13,6 +13,7 @@
 #include "hw/zen/zen-utils.h"
 #include "hw/zen/psp-intc.h"
 #include "hw/zen/psp-timer.h"
+#include "hw/zen/psp-mb.h"
 
 #define FW_ADDR 0x00000000
 #define FW_SIZE 0x40000
@@ -67,6 +68,33 @@ static DeviceState *create_timer(DeviceState *intc, int i)
     return dev;
 }
 
+static DeviceState *create_mailbox(hwaddr addr)
+{
+    DeviceState *dev = qdev_new(TYPE_PSP_MB);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
+    return dev;
+}
+
+static void create_mailboxes(DeviceState *intc)
+{
+    DeviceState *dev;
+    int i;
+
+    dev = create_mailbox(0x03010700);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 5, qdev_get_gpio_in(intc, 0x10));
+    
+    // SMUv9/SMUv10
+    dev = create_mailbox(0x03010500);
+    for(i = 0; i < 16; i++)
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, qdev_get_gpio_in(intc, 0x20 + i));
+    
+    // SMUv10
+    dev = create_mailbox(0x03010a00);
+    for(i = 0; i < 16; i++)
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, qdev_get_gpio_in(intc, 0x50 + i));
+}
+
 static XtensaCPU *smu_common_init(MachineState *machine)
 {
     XtensaCPU *cpu = NULL;
@@ -107,6 +135,8 @@ static XtensaCPU *smu_common_init(MachineState *machine)
     DeviceState *intc = create_intc(cpu);
     create_timer(intc, 0);
     create_timer(intc, 1);
+
+    create_mailboxes(intc);
 
     return cpu;
 }
