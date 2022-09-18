@@ -15,6 +15,7 @@
 #include "hw/zen/psp-intc.h"
 #include "hw/zen/psp-timer.h"
 #include "hw/zen/psp-mb.h"
+#include "hw/zen/psp-fuses.h"
 #include "qemu/log.h"
 
 #define FW_ADDR 0x00000000
@@ -35,6 +36,7 @@ static void smu_reset(void *opaque)
 /*
 Memory region: page cache
 */
+
 static MemTxResult pages_read_with_attrs(void *opaque, hwaddr addr, uint64_t *data, unsigned size, MemTxAttrs attrs)
 {
     return MEMTX_ACCESS_ERROR;
@@ -50,6 +52,10 @@ const MemoryRegionOps pages_ops = {
     .write_with_attrs = pages_write_with_attrs,
 };
 
+/*
+Memory region: misc SMN devices
+*/
+
 static uint64_t smn_unmpl_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint64_t res = 0;
@@ -58,6 +64,8 @@ static uint64_t smn_unmpl_read(void *opaque, hwaddr offset, unsigned size)
     case 0x490:
         /* For SMUv10 */
         return 0xffffffff;
+    case 0x18080064:
+        res = 0x200;
     }
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  (offset 0x%lx, size 0x%x)\n", __func__, offset, size);
@@ -74,6 +82,10 @@ const MemoryRegionOps smn_unmpl_ops = {
     .read = smn_unmpl_read,
     .write = smn_unmpl_write,
 };
+
+/*
+Memory region: device at SMN:0x5b000
+*/
 
 static uint64_t dev_5b_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -105,16 +117,57 @@ const MemoryRegionOps dev_5b_ops = {
     .write = dev_5b_write,
 };
 
+/*
+Memory region: SMUIO
+*/
+
+static uint64_t smuio_read(void *opaque, hwaddr offset, unsigned size)
+{
+    uint64_t res = 0;
+
+    switch(offset) {
+    case 0xd84:
+        res = 0x50; // SMUv10
+    }
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  (offset 0x%lx, size 0x%x)\n", __func__, offset, size);
+    return res;
+}
+
+static void smuio_write(void *opaque, hwaddr offset,
+                            uint64_t data, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", __func__, offset, size, data);
+}
+
+const MemoryRegionOps smuio_ops = {
+    .read = smuio_read,
+    .write = smuio_write,
+};
+
+/*
+Memory region: "PSP" registers
+*/
+
 static uint64_t regs_read(const char *name, hwaddr offset, unsigned size)
 {
     switch(offset) {
+    // SMUv9
     case 0x54:
-    case 0x56:
-        return 0; // noisy
+    case 0x56: // size 2
+        return 0;
     case 0x58:
         return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     case 0x5c:
         return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 32;
+
+    // SMUv10
+    case 0x4c:
+        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    case 0x50:
+        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 32;
+    case 0xf00 ... 0xfff:
+        /* Debug registers ? */
+        return 0;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  (offset 0x%lx, size 0x%x)\n", name, offset, size);
     return 0;
@@ -126,6 +179,9 @@ static void regs_write(const char *name, hwaddr offset, uint64_t data, unsigned 
     case 0x54:
     case 0x56:
         return; // noisy
+    case 0xf00 ... 0xfff:
+        /* Debug registers ? */
+        return;
     }
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", name, offset, size, data);
 }
@@ -161,6 +217,10 @@ const MemoryRegionOps pub_regs_ops = {
     .read = pub_regs_read,
     .write = pub_regs_write,
 };
+
+/*
+Create devices
+*/
 
 static void create_regs_region(const char *name, hwaddr addr, const MemoryRegionOps *ops)
 {
@@ -271,6 +331,27 @@ static void create_dev_5b(MemoryRegion *smn_region)
     }
 }
 
+static void create_fuses(MemoryRegion *smn_region)
+{
+    DeviceState *dev = qdev_new(TYPE_PSP_FUSES);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    memory_region_add_subregion(smn_region, 0x5d000, sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
+
+    psp_fuses_write32(dev, 896, 0x4285a5a0);
+    psp_fuses_write32(dev, 900, 0xc1622197);
+}
+
+static void create_smuio(MemoryRegion *smn_region)
+{
+    MemoryRegion *region = g_malloc0(sizeof(*region));
+    memory_region_init_io(region, NULL, &smuio_ops, NULL, "smuio", 0x1000);
+    memory_region_add_subregion(smn_region, 0x5a000, region);
+}
+
+/*
+Memory region: general functions
+*/
+
 static XtensaCPU *smu_common_init(MachineState *machine)
 {
     XtensaCPU *cpu = NULL;
@@ -303,8 +384,6 @@ static XtensaCPU *smu_common_init(MachineState *machine)
 
     MemoryRegion *smn_region = create_smn_region();
     create_unimplemented_device_generic(smn_region, "smuthm", 0x59800, 0x0800);
-    create_unimplemented_device_generic(smn_region, "smuio",  0x5a000, 0x1000);
-    create_unimplemented_device_generic(smn_region, "fuses",  0x5d000, 0x1000);
 
     create_smn_bridge(smn_region);
 
@@ -317,6 +396,8 @@ static XtensaCPU *smu_common_init(MachineState *machine)
 
     create_mailboxes(intc);
     create_dev_5b(smn_region);
+    create_fuses(smn_region);
+    create_smuio(smn_region);
 
     return cpu;
 }
