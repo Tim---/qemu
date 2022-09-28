@@ -22,4 +22,11 @@ uint32_t zen_get_num_ccp_queues(zen_codename codename);
 const char *zen_get_name(zen_codename codename);
 zen_codename zen_get_codename(const char *name);
 
+typedef enum {
+    SMU_V9,
+    SMU_V10,
+    SMU_V11,
+    SMU_V12,
+} smu_version;
+
 #endif

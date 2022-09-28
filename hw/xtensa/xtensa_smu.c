@@ -16,7 +16,21 @@
 #include "hw/zen/psp-timer.h"
 #include "hw/zen/psp-mb.h"
 #include "hw/zen/psp-fuses.h"
+#include "hw/zen/zen-cpuid.h"
 #include "qemu/log.h"
+
+#define TYPE_SMU_MACHINE                MACHINE_TYPE_NAME("smu")
+
+struct SmuMachineClass {
+    MachineClass parent;
+    smu_version version;
+};
+
+struct SmuMachineState {
+    MachineState parent;
+};
+
+OBJECT_DECLARE_TYPE(SmuMachineState, SmuMachineClass, SMU_MACHINE)
 
 #define FW_ADDR 0x00000000
 #define FW_SIZE 0x80000
@@ -521,13 +535,53 @@ static void xtensa_smu_init(MachineState *machine)
     load_image_targphys("/tmp/smu.bin", FW_ADDR, FW_SIZE);
 }
 
-static void xtensa_smu_machine_init(MachineClass *mc)
+static void xtensa_smu_machine_class_init(ObjectClass *oc, void *data)
 {
-    mc->desc = "smu machine (" XTENSA_DEFAULT_CPU_MODEL ")";
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "smu machine (generic)";
     mc->init = xtensa_smu_init;
     mc->max_cpus = 1;
     mc->default_cpu_type = XTENSA_CPU_TYPE_NAME("smu");
     mc->ignore_memory_transaction_failures = true;
 }
 
-DEFINE_MACHINE("smu", xtensa_smu_machine_init)
+static void xtensa_smu_machine_common_class_init(ObjectClass *oc, smu_version version, const char *desc)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    SmuMachineClass *smc = SMU_MACHINE_CLASS(oc);
+
+    mc->desc = desc;
+    smc->version = version;
+}
+
+static void xtensa_smu_machine_v9_class_init(ObjectClass *oc, void *data)
+{
+    xtensa_smu_machine_common_class_init(oc, SMU_V9, "SMU machine (v9)");
+}
+
+static void xtensa_smu_machine_v10_class_init(ObjectClass *oc, void *data)
+{
+    xtensa_smu_machine_common_class_init(oc, SMU_V10, "SMU machine (v10)");
+}
+
+static const TypeInfo smu_machine_types[] = {
+    {
+        .name          = MACHINE_TYPE_NAME("smu-v9"),
+        .parent        = TYPE_SMU_MACHINE,
+        .class_init    = xtensa_smu_machine_v9_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("smu-v10"),
+        .parent        = TYPE_SMU_MACHINE,
+        .class_init    = xtensa_smu_machine_v10_class_init,
+    }, {
+        .name          = TYPE_SMU_MACHINE,
+        .parent        = TYPE_MACHINE,
+        .class_init    = xtensa_smu_machine_class_init,
+        .class_size    = sizeof(SmuMachineClass),
+        .instance_size = sizeof(SmuMachineState),
+        .abstract      = true,
+    }
+};
+
+DEFINE_TYPES(smu_machine_types)
