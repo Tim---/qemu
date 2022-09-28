@@ -99,95 +99,8 @@ const MemoryRegionOps smn_unmpl_ops = {
 };
 
 /*
-Memory region: "PSP" registers
-*/
-
-static uint64_t regs_read(const char *name, hwaddr offset, unsigned size)
-{
-    switch(offset) {
-    // SMUv9
-    case 0x54:
-    case 0x56: // size 2
-        return 0;
-    case 0x58:
-        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    case 0x5c:
-        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 32;
-
-    // SMUv10
-    case 0x4c:
-        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    case 0x50:
-        return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 32;
-    case 0xf00 ... 0xfff:
-        /* Debug registers ? */
-        return 0;
-    }
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  (offset 0x%lx, size 0x%x)\n", name, offset, size);
-    return 0;
-}
-
-static void regs_write(const char *name, hwaddr offset, uint64_t data, unsigned size)
-{
-    switch(offset) {
-    case 0x54:
-    case 0x56:
-        return; // noisy
-    case 0xf00 ... 0xfff:
-        /* Debug registers ? */
-        return;
-    }
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", name, offset, size, data);
-}
-
-static uint64_t priv_regs_read(void *opaque, hwaddr offset, unsigned size)
-{
-    return regs_read("regs-priv", offset, size);
-}
-
-static void priv_regs_write(void *opaque, hwaddr offset,
-                            uint64_t data, unsigned size)
-{
-    regs_write("regs-priv", offset, data, size);
-}
-
-const MemoryRegionOps priv_regs_ops = {
-    .read = priv_regs_read,
-    .write = priv_regs_write,
-};
-
-static uint64_t pub_regs_read(void *opaque, hwaddr offset, unsigned size)
-{
-    return regs_read("regs-pub", offset, size);
-}
-
-static void pub_regs_write(void *opaque, hwaddr offset,
-                            uint64_t data, unsigned size)
-{
-    regs_write("regs-pub", offset, data, size);
-}
-
-const MemoryRegionOps pub_regs_ops = {
-    .read = pub_regs_read,
-    .write = pub_regs_write,
-};
-
-/*
 Create devices
 */
-
-static void create_regs_region(const char *name, hwaddr addr, const MemoryRegionOps *ops)
-{
-    MemoryRegion *region = g_malloc0(sizeof(*region));
-    memory_region_init_io(region, NULL, ops, NULL, name, 0x1000);
-    memory_region_add_subregion(get_system_memory(), addr, region);
-}
-
-static void create_regs(void)
-{
-    create_regs_region("regs-pub", 0x03010000, &pub_regs_ops);
-    create_regs_region("regs-priv", 0x03200000, &priv_regs_ops);
-}
 
 static MemoryRegion *create_smn_region(void)
 {
@@ -432,7 +345,7 @@ static XtensaCPU *smu_common_init(MachineState *machine)
     create_unimplemented_device("dev0321",   0x03210000, 0x00010000);
     create_unimplemented_device("dev0327",   0x03270000, 0x00010000);
 
-    create_regs();
+    create_regs(smc->version);
 
     MemoryRegion *smn_region = create_smn_region();
     create_unimplemented_device_generic(smn_region, "smuthm", 0x59800, 0x0800);

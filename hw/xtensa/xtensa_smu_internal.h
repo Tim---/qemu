@@ -2,5 +2,6 @@
 #define XTENSA_SMU_INTERNAL_H
 
 void create_smuio(MemoryRegion *smn_region, smu_version version);
+void create_regs(smu_version version);
 
 #endif
