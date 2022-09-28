@@ -527,6 +527,7 @@ static void xtensa_smu_machine_init(MachineClass *mc)
     mc->init = xtensa_smu_init;
     mc->max_cpus = 1;
     mc->default_cpu_type = XTENSA_CPU_TYPE_NAME("smu");
+    mc->ignore_memory_transaction_failures = true;
 }
 
 DEFINE_MACHINE("smu", xtensa_smu_machine_init)
