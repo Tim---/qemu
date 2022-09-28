@@ -489,6 +489,11 @@ static void xtensa_smu_machine_v10_class_init(ObjectClass *oc, void *data)
     xtensa_smu_machine_common_class_init(oc, SMU_V10, "SMU machine (v10)");
 }
 
+static void xtensa_smu_machine_v11_class_init(ObjectClass *oc, void *data)
+{
+    xtensa_smu_machine_common_class_init(oc, SMU_V11, "SMU machine (v11)");
+}
+
 static const TypeInfo smu_machine_types[] = {
     {
         .name          = MACHINE_TYPE_NAME("smu-v9"),
@@ -498,6 +503,10 @@ static const TypeInfo smu_machine_types[] = {
         .name          = MACHINE_TYPE_NAME("smu-v10"),
         .parent        = TYPE_SMU_MACHINE,
         .class_init    = xtensa_smu_machine_v10_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("smu-v11"),
+        .parent        = TYPE_SMU_MACHINE,
+        .class_init    = xtensa_smu_machine_v11_class_init,
     }, {
         .name          = TYPE_SMU_MACHINE,
         .parent        = TYPE_MACHINE,
