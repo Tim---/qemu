@@ -30,14 +30,12 @@ void psp_fuses_write_bits(DeviceState *dev, uint32_t start, uint32_t size, uint3
 
     uint32_t first_size = MIN(size, 32 - start % 32);
 
-    printf("start = %d, size = %d\n", start % 32, first_size);
     *p = deposit32(*p, start % 32, first_size, value);
 
     size -= first_size;
     value >>= first_size;
 
     if(size) {
-        printf("start = %d, size = %d\n", 0, size);
         *(p+1) = deposit32(*(p+1), 0, size, value);
     }
 }
