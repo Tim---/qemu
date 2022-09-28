@@ -11,6 +11,7 @@ config ZEN
     select ISA_BUS
     select SMBUS
     select ACPI
+    select PCI_EXPRESS
 
 config CCP
     bool
