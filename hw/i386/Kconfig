@@ -141,3 +141,10 @@ config VMMOUSE
 config PC_ZEN
     bool
     select ZEN
+    select HPET
+    # ACPI pulled a lot of things...
+    select PC_ACPI
+    select PC_PCI
+    select ACPI_SMBUS
+    select DIMM
+    select IDE_QDEV
