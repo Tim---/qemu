@@ -72,13 +72,6 @@ struct SmuState {
     SmuConfig *config;
 };
 
-typedef enum {
-    SMU_V9,
-    SMU_V10,
-    SMU_V11,
-    SMU_V12,
-} SmuVersion;
-
 SmuConfig smu_configs[] = {
     [SMU_V9] = {
         .smu_ok_offset      = 0x34,
