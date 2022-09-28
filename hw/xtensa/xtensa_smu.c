@@ -407,6 +407,7 @@ static XtensaCPU *smu_common_init(MachineState *machine)
 {
     XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
+    SmuMachineClass *smc = SMU_MACHINE_GET_CLASS(machine);
 
     cpu = XTENSA_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
@@ -446,9 +447,8 @@ static XtensaCPU *smu_common_init(MachineState *machine)
     create_timer(intc, 1);
 
     create_mailboxes(intc);
-    create_dev_5b(smn_region);
     create_fuses(smn_region);
-    create_smuio(smn_region);
+    create_smuio(smn_region, smc->version);
 
     return cpu;
 }
