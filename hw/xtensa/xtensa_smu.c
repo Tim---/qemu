@@ -18,6 +18,7 @@
 #include "hw/zen/psp-fuses.h"
 #include "hw/zen/zen-cpuid.h"
 #include "qemu/log.h"
+#include "xtensa_smu_internal.h"
 
 #define TYPE_SMU_MACHINE                MACHINE_TYPE_NAME("smu")
 
@@ -95,67 +96,6 @@ static void smn_unmpl_write(void *opaque, hwaddr offset,
 const MemoryRegionOps smn_unmpl_ops = {
     .read = smn_unmpl_read,
     .write = smn_unmpl_write,
-};
-
-/*
-Memory region: device at SMN:0x5b000
-*/
-
-static uint64_t dev_5b_read(void *opaque, hwaddr offset, unsigned size)
-{
-    uint64_t res = 0;
-
-    /*
-    The device at 0x5b000 is divided in 2 blocks of size 0x800.
-    Each block seems to describe 12 "things".
-    At offset 0xfc, we have 12 regions of size 40.
-    When the firmware writes some values, it waits for the last register to have bit 16 enabled (ACK ?).
-    */
-    for(int i = 0; i < 12; i++) {
-        if(offset == 0x104 + i * 40 + 0x24) {
-            res = 0x10000;
-        }
-    }
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  (offset 0x%lx, size 0x%x)\n", __func__, offset, size);
-    return res;
-}
-
-static void dev_5b_write(void *opaque, hwaddr offset,
-                            uint64_t data, unsigned size)
-{
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", __func__, offset, size, data);
-}
-
-const MemoryRegionOps dev_5b_ops = {
-    .read = dev_5b_read,
-    .write = dev_5b_write,
-};
-
-/*
-Memory region: SMUIO
-*/
-
-static uint64_t smuio_read(void *opaque, hwaddr offset, unsigned size)
-{
-    uint64_t res = 0;
-
-    switch(offset) {
-    case 0xd84:
-        res = 0x50; // SMUv10
-    }
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  (offset 0x%lx, size 0x%x)\n", __func__, offset, size);
-    return res;
-}
-
-static void smuio_write(void *opaque, hwaddr offset,
-                            uint64_t data, unsigned size)
-{
-    qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write (offset 0x%lx, size 0x%x, value 0x%lx)\n", __func__, offset, size, data);
-}
-
-const MemoryRegionOps smuio_ops = {
-    .read = smuio_read,
-    .write = smuio_write,
 };
 
 /*
@@ -336,15 +276,6 @@ static void create_mailboxes(DeviceState *intc)
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, qdev_get_gpio_in(intc, 0x50 + i));
 }
 
-static void create_dev_5b(MemoryRegion *smn_region)
-{
-    for(int i = 0; i < 2; i++) {
-        MemoryRegion *region = g_malloc0(sizeof(*region));
-        memory_region_init_io(region, NULL, &dev_5b_ops, NULL, "dev-5b", 0x800);
-        memory_region_add_subregion(smn_region, 0x5b000 + i * 0x800, region);
-    }
-}
-
 static void create_fuses(MemoryRegion *smn_region)
 {
     DeviceState *dev = qdev_new(TYPE_PSP_FUSES);
@@ -466,13 +397,6 @@ static void create_fuses(MemoryRegion *smn_region)
     psp_fuses_write_bits(dev, 0x248c,  8, 0x0);
     psp_fuses_write_bits(dev, 0x2494,  8, 0x0);
     psp_fuses_write_bits(dev, 0x249d,  8, 0x5d);
-}
-
-static void create_smuio(MemoryRegion *smn_region)
-{
-    MemoryRegion *region = g_malloc0(sizeof(*region));
-    memory_region_init_io(region, NULL, &smuio_ops, NULL, "smuio", 0x1000);
-    memory_region_add_subregion(smn_region, 0x5a000, region);
 }
 
 /*
