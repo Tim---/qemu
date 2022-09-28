@@ -717,3 +717,5 @@ config PSP
     bool
     select ZEN
     select PSP_DEVS
+    select ARM_VIRT
+    select ARM_V7M
