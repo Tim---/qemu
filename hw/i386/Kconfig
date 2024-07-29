@@ -162,4 +162,4 @@ config PC_ZEN
     select PC_PCI
     select ACPI_SMBUS
     select DIMM
-    select IDE_QDEV
+    select IDE_BUS

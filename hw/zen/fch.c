@@ -170,7 +170,7 @@ const MemoryRegionOps pm_indirect_ops = {
 static void create_pmio_ports(FchState *s)
 {
     memory_region_init_io(&s->pm_indirect_io, OBJECT(s), &pm_indirect_ops, s, "pm-indirect", 2);
-    sysbus_add_io(SYS_BUS_DEVICE(s), 0xcd6, &s->pm_indirect_io);
+    memory_region_add_subregion(get_system_io(), 0xcd6, &s->pm_indirect_io);
     sysbus_init_ioports(SYS_BUS_DEVICE(s), 0xcd6, 2);
 }
 

@@ -5,6 +5,7 @@
 #include "hw/registerfields.h"
 #include "qemu/range.h"
 #include "hw/i2c/smbus_master.h"
+#include "exec/address-spaces.h"
 
 #define REGS_SIZE 0x20
 
@@ -227,7 +228,7 @@ static void fch_smbus_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&s->regs_region, OBJECT(s), &fch_smbus_io_ops, s,
                           "fch-smbus-regs", REGS_SIZE);
 
-    sysbus_add_io(sbd, 0xb00, &s->regs_region);
+    memory_region_add_subregion(get_system_io(), 0xb00, &s->regs_region);
     sysbus_init_ioports(sbd, 0xb00, REGS_SIZE);
 
     memory_region_init_alias(&s->regs_region_alias, OBJECT(s), "fch-smbus-regs-alias",

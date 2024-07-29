@@ -456,7 +456,7 @@ int ccp_op_aes(CcpState *s, struct ccp5_desc * desc)
                   key_addr.addr, memtype_to_str(key_addr.type),
                   length);
 
-    uint8_t key[aes_type->key_size];
+    g_autofree uint8_t *key = g_malloc(aes_type->key_size);
     do_read(s, key, &key_addr, aes_type->key_size);
     reverse_bytes(key, aes_type->key_size);
 
@@ -834,10 +834,10 @@ int ccp_op_rsa(CcpState *s, struct ccp5_desc * desc)
                   key.addr, memtype_to_str(key.type),
                   length);
 
-    uint8_t mod_sig_buf[rsa_size_bytes * 2];
+    g_autofree uint8_t *mod_sig_buf = g_malloc(rsa_size_bytes * 2);
     do_read(s, mod_sig_buf, &src, rsa_size_bytes * 2);
 
-    uint8_t exp_buf[rsa_size_bytes];
+    g_autofree uint8_t *exp_buf = g_malloc(rsa_size_bytes);
     do_read(s, exp_buf, &key, rsa_size_bytes);
 
     uint8_t *pmod = mod_sig_buf;
@@ -853,7 +853,7 @@ int ccp_op_rsa(CcpState *s, struct ccp5_desc * desc)
     BIGNUM *r = BN_new();
     BN_mod_exp(r, sig, exp, mod, ctx);
 
-    uint8_t outbuf[rsa_size_bytes];
+    g_autofree uint8_t *outbuf = g_malloc(rsa_size_bytes);
     BN_bn2lebinpad(r, outbuf, rsa_size_bytes);
     do_write(s, outbuf, &dst, rsa_size_bytes);
 

@@ -138,7 +138,7 @@ static bool bios_dir_get_entry(bios_directory_table *table, amd_bios_type type,
 
 void zen_rom_read(zen_rom_infos_t *infos, uint32_t offset, void *buf, int bytes)
 {
-    int ret = blk_pread(infos->blk, infos->rom_base + (offset & 0x00ffffff), buf, bytes);
+    int ret = blk_pread(infos->blk, infos->rom_base + (offset & 0x00ffffff), bytes, buf, 0);
     assert(ret >= 0);
 }
 

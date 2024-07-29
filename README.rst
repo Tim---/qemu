@@ -11,7 +11,7 @@ Building
 
   mkdir build
   cd build
-  ../qemu/configure \
+  ../configure \
       --target-list=xtensa-softmmu,arm-softmmu,x86_64-softmmu \
       --with-devices-xtensa=smu \
       --with-devices-arm=psp \

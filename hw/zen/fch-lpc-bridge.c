@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "qemu/log.h"
 #include "hw/zen/fch-lpc-bridge.h"
 

@@ -2,7 +2,7 @@
 #include "hw/zen/df.h"
 #include "qemu/log.h"
 #include "hw/registerfields.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
@@ -221,8 +221,7 @@ static void df_realize(DeviceState *dev, Error **errp)
     int fun;
 
     for(fun = 0; fun < 8; fun++) {
-        PCIDevice *child = pci_new_multifunction(PCI_DEVFN(0x18, fun), true,
-                                                 TYPE_DF_FUNC);
+        PCIDevice *child = pci_new_multifunction(PCI_DEVFN(0x18, fun), TYPE_DF_FUNC);
         object_property_set_link(OBJECT(child), "parent",
                                  OBJECT(dev), &error_fatal);
         pci_realize_and_unref(child, s->bus, &error_fatal);

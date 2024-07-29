@@ -488,7 +488,7 @@ static void rtc_update_timer(void *opaque)
     check_update_timer(s);
 }
 
-static void cmos_write(RTCState *s, uint8_t cmos_index, uint8_t data)
+static void cmos_write(MC146818RtcState *s, uint8_t cmos_index, uint8_t data)
 {
     uint32_t old_period;
     bool update_periodic_timer;
@@ -622,7 +622,7 @@ static void cmos_write(RTCState *s, uint8_t cmos_index, uint8_t data)
 static void cmos_ioport_write(void *opaque, hwaddr addr,
                               uint64_t data, unsigned size)
 {
-    RTCState *s = opaque;
+    MC146818RtcState *s = opaque;
     uint8_t bank;
 
     switch (addr)
@@ -778,7 +778,7 @@ static int update_in_progress(MC146818RtcState *s)
     return 0;
 }
 
-static uint8_t cmos_read(RTCState *s, uint8_t cmos_index)
+static uint8_t cmos_read(MC146818RtcState *s, uint8_t cmos_index)
 {
     int ret;
 
@@ -846,7 +846,7 @@ static uint8_t cmos_read(RTCState *s, uint8_t cmos_index)
 static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    RTCState *s = opaque;
+    MC146818RtcState *s = opaque;
     uint8_t bank;
 
     switch (addr)

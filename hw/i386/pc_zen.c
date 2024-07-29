@@ -59,12 +59,12 @@ static void pc_zen_simulate_psp_boot(PcZenMachineState *mms, BlockBackend *blk)
     create_apob(apob_dest, mms->codename);
 }
 
-static void pc_zen_machine_reset(MachineState *machine)
+static void pc_zen_machine_reset(MachineState *machine, ShutdownCause reason)
 {
     PcZenMachineState *mms = PC_ZEN_MACHINE(machine);
     CPUState *cs;
 
-    qemu_devices_reset();
+    qemu_devices_reset(reason);
 
     CPU_FOREACH(cs) {
         X86CPU *cpu = X86_CPU(cs);

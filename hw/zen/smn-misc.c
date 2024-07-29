@@ -93,11 +93,12 @@ static const MemoryRegionOps smn_misc_ops = {
 static void add_region(SmnMiscState *s, const char *name, hwaddr addr, uint64_t size)
 {
     MemoryRegion *region = g_malloc0(sizeof(*region));
-    create_region_with_unimpl(region, OBJECT(s), name, size);
+    create_region_with_unimpl(region, OBJECT(s), "%s", size, name);
     memory_region_add_subregion(&s->region, addr, region);
 }
 
-static void add_region_printf(SmnMiscState *s, const char *fmt, hwaddr addr, uint64_t size, ...)
+__attribute__ ((format (printf, 2, 5)))
+static void add_region_printf(SmnMiscState *s, const char *fmt, hwaddr addr, uint64_t size, ...)     
 {
     va_list args;
     va_start(args, size);

@@ -1,5 +1,7 @@
 #include "qemu/osdep.h"
 #include "exec/address-spaces.h"
+#include "exec/hwaddr.h"
+#include "exec/memory.h"
 #include "hw/zen/apob.h"
 #include "hw/zen/zen-cpuid.h"
 

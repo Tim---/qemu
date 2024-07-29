@@ -12,7 +12,7 @@
 #include "hw/pci/pcie_host.h"
 #include "exec/address-spaces.h"
 #include "hw/zen/fch-lpc-bridge.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/zen/fch-spi.h"
 #include "hw/zen/zen-cpuid.h"
 #include "hw/qdev-properties.h"
@@ -90,14 +90,14 @@ static void generic_map(MemoryRegion *container, SysBusDevice *sbd, int n, hwadd
     MemoryRegion *region = sysbus_mmio_get_region(sbd, n);
 
     if(alias) {
-        MemoryRegion *alias = g_new(MemoryRegion, 1);
+        MemoryRegion *alias_reg = g_new(MemoryRegion, 1);
         g_autofree char *alias_name = g_strdup_printf("alias-%s",
                                                     memory_region_name(region));
 
-        memory_region_init_alias(alias, memory_region_owner(region), alias_name,
+        memory_region_init_alias(alias_reg, memory_region_owner(region), alias_name,
                                 region, 0, memory_region_size(region));
         
-        region = alias;
+        region = alias_reg;
     }
 
     if(overlap) {
@@ -206,7 +206,7 @@ static void create_pcie_root(ZenMoboState *s)
 static void create_fch_lpc_bridge(ZenMoboState *s)
 {
     pci_create_simple_multifunction(s->pci_bus, PCI_DEVFN(0x14, 0x3),
-                                    true, TYPE_FCH_LPC_BRIDGE);
+                                    TYPE_FCH_LPC_BRIDGE);
 }
 
 static DeviceState* create_fch_spi(ZenMoboState *s, zen_codename codename)
@@ -358,8 +358,8 @@ static void create_df(ZenMoboState *s)
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
 
     for(int fun = 0; fun < 8; fun++) {
-        PCIDevice *dev = pci_find_device(s->pci_bus, 0, PCI_DEVFN(0x18, fun));
-        create_pcie_smn_access(s, dev, 0x1c000 + fun * 0x400, 0x400);
+        PCIDevice *pci_dev = pci_find_device(s->pci_bus, 0, PCI_DEVFN(0x18, fun));
+        create_pcie_smn_access(s, pci_dev, 0x1c000 + fun * 0x400, 0x400);
     }
 }
 

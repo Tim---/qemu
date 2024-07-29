@@ -1,5 +1,5 @@
 #include "qemu/osdep.h"
-#include "hw/pci/pci.h"
+#include "hw/pci/pci_device.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/sysbus.h"
 #include "hw/zen/zen-pci-root.h"
@@ -50,10 +50,10 @@ static void zen_host_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&pci->data_mem, OBJECT(dev), &pci_host_data_le_ops, s,
                           "pci-conf-data", 4);
 
-    sysbus_add_io(sbd, 0xcf8, &pci->conf_mem);
+    memory_region_add_subregion(get_system_io(), 0xcf8, &pci->conf_mem);
     sysbus_init_ioports(sbd, 0xcf8, 4);
 
-    sysbus_add_io(sbd, 0xcfc, &pci->data_mem);
+    memory_region_add_subregion(get_system_io(), 0xcfc, &pci->data_mem);
     sysbus_init_ioports(sbd, 0xcfc, 4);
 }
 
