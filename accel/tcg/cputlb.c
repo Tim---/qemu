@@ -1243,8 +1243,6 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
                                         MMUAccessType access_type,
                                         int mmu_idx, uintptr_t retaddr)
 {
-    cpu->cc->tcg_ops->do_unaligned_access(cpu, addr, access_type,
-                                          mmu_idx, retaddr);
 }
 
 static MemoryRegionSection *
