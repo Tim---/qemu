@@ -33,11 +33,13 @@ Given a BIOS image `bios.bin`, you can emulate the PSP:
 Using the same image, you can also emulate the x86 processor:
 
 .. code-block:: shell
+
   ./qemu-system-x86_64 -M pc-zen -cpu summit-ridge -drive if=mtd,format=raw,file=bios.bin
 
 You can also extract the firmware of the SMU to `/tmp/smu.bin`, and emulate the SMU:
 
 .. code-block:: shell
+
   ./qemu-system-xtensa -M smu-v9 -d guest_errors,unimp
 
 
