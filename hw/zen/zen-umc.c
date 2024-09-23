@@ -28,6 +28,7 @@ typedef enum {
     EMU_EMULATION2 = 0x51e051e0,
     EMU_WITH_PORT80_DEBUG = 0x5a335a33,
 } emu_type_e;
+REG32(CTRL_DBG_DATA,         0x105c)
 
 /*
  * Indirect access to the PMU.
@@ -48,6 +49,8 @@ static uint64_t zen_umc_read(void *opaque, hwaddr offset, unsigned size)
     switch(offset) {
     case A_CTRL_EMU_TYPE:
         return 0;
+    case A_CTRL_DBG_DATA:
+        return 0xc001c001;
     case A_CTRL_PMU_DATA:
         assert(FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, ACCESS_WRITE) == 0);
         assert(FIELD_EX32(s->indirect_addr, CTRL_PMU_ADDR, AUTO_INCREMENT) == 0);
